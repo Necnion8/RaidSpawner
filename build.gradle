@@ -1,8 +1,9 @@
 plugins {
     id 'java'
+    id "com.gradleup.shadow" version "8.3.0"
 }
 
-group = 'com.gmail.necnionch.myplugin'
+group = 'com.gmail.necnionch.myplugin.raidspawner'
 version = '1.0.0'
 
 repositories {
@@ -24,9 +25,19 @@ repositories {
 }
 
 dependencies {
-    compileOnly "org.spigotmc:spigot-api:1.14.4-R0.1-SNAPSHOT"
-    compileOnly "com.github.angeschossen:LandsAPI:7.10.13"
-    compileOnly 'io.lumine:Mythic-Dist:5.6.1'
+    implementation "org.spigotmc:spigot-api:1.14.4-R0.1-SNAPSHOT"
+    implementation "com.github.angeschossen:LandsAPI:7.10.13"
+    implementation 'io.lumine:Mythic-Dist:5.6.1'
+    implementation "net.objecthunter:exp4j:0.4.8"
+}
+
+tasks.named("shadowJar", com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+    archiveClassifier.set("")
+    dependencies {
+        include(dependency("net.objecthunter:exp4j:0.4.8"))
+        exclude "/META-INF/**"
+    }
+    relocate "net.objecthunter.exp4j", "${project.group}.libs.exp4j"
 }
 
 def targetJavaVersion = 17
