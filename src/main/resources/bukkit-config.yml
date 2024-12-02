@@ -1,36 +1,49 @@
 
+# イベント開始設定
 event-start:
+  # いずれかの条件を満たすと実行
   conditions:
     - type: real-clock
-      timezone: local  # or asia/tokyo
+      timezone: asia/tokyo  # or local
       time-hours: 22
       time-minutes: 30
 
+# 襲撃設定
 raid:
+  # ゲーム時間
+  event-time-minutes: 30
   waves: 5
   mobs:
-    - count: "ceil( land_players * (3 + land_chunks * 1.5) )"  # or number value
+    - count: "ceil( land_players * (3 + land_chunks * 1.5) * (1 + 0.1 * wave) )"  # or number value
+      # スポーン位置: Landから離すチャンク数
       chunk-distance: 2
+      # スポーン対象
       enemies:
-        - mythicmobs:MOB_TYPE:LEVEL
+        - plugin: mythicmobs
+          type: MOB_TYPE
+          priority: 10
+          level: 1
 
-event-win:
+# 成功報酬設定
+event-win-rewards:
+  # 条件を満たしたもののみ実行
   conditions:
     - type: timer
       time-minutes: 15
       actions:
         player:
-          balance: 3000  # negative support
+          add-money: 3000
         land:
 
-    - type: timer
-      time-minutes: 30
-      actions:
-        player:
-          balance: 5
-        land:
+  # どの条件も満たされていない場合のアクション
+  condition-else:
+    actions:
+      player:
+        add-money: 5
+      land:
 
-event-lose:
+# 失敗報酬設定
+event-lose-rewards:
   actions:
     player:
     land:
