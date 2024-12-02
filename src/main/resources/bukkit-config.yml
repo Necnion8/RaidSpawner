@@ -1,0 +1,37 @@
+
+event-start:
+  conditions:
+    - type: real-clock
+      timezone: local  # or asia/tokyo
+      time-hours: 22
+      time-minutes: 30
+
+raid:
+  waves: 5
+  mobs:
+    - count: "ceil( land_players * (3 + land_chunks * 1.5) )"  # or number value
+      chunk-distance: 2
+      enemies:
+        - mythicmobs:MOB_TYPE:LEVEL
+
+event-win:
+  conditions:
+    - type: timer
+      time-minutes: 15
+      actions:
+        player:
+          balance: 3000  # negative support
+        land:
+
+    - type: timer
+      time-minutes: 30
+      actions:
+        player:
+          balance: 5
+        land:
+
+event-lose:
+  actions:
+    player:
+    land:
+      remove-chunk: 1
