@@ -8,13 +8,13 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class MoneyAddAction implements PlayerAction {
+public class PlayerAddMoneyAction implements PlayerAction {
 
     private final Provider provider;
     private final Economy economy;
     private final double amount;
 
-    public MoneyAddAction(Provider provider, double amount) {
+    public PlayerAddMoneyAction(Provider provider, double amount) {
         this.provider = provider;
         this.economy = provider.getEconomy();
         this.amount = amount;
@@ -37,7 +37,7 @@ public class MoneyAddAction implements PlayerAction {
     }
 
 
-    public static class Provider extends ActionProvider<MoneyAddAction> {
+    public static class Provider extends ActionProvider<PlayerAddMoneyAction> {
 
         private final Economy economy;
 
@@ -47,9 +47,9 @@ public class MoneyAddAction implements PlayerAction {
         }
 
         @Override
-        public MoneyAddAction create(Object value, @Nullable ConfigurationSection config) throws ConfigurationError {
+        public PlayerAddMoneyAction create(Object value, @Nullable ConfigurationSection config) throws ConfigurationError {
             try {
-                return new MoneyAddAction(this, Double.parseDouble(((String) value)));
+                return new PlayerAddMoneyAction(this, Double.parseDouble(((String) value)));
             } catch (ClassCastException | NullPointerException e) {
                 throw new ConfigurationError("Not number value: " + value);
             } catch (NumberFormatException e) {
