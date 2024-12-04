@@ -6,7 +6,6 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin {
@@ -14,7 +13,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
     private final Map<String, ConditionProvider<?>> conditionProviders = new HashMap<>();
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
     private final Timer timer = new Timer("RaidSpawnerTimer", true);
-    private final Consumer<Runnable> runInMainThread = task -> getServer().getScheduler().runTask(this, task);
 
     @Override
     public void onEnable() {
@@ -65,7 +63,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
                 continue;
             }
 
-            startConditions.add(new ConditionWrapper(timer, runInMainThread, condition, this::onTrigger));
+            startConditions.add(new ConditionWrapper(timer, condition, this::onTrigger));
         }
         getLogger().info("Loaded " + startConditions.size() + " conditions");
     }

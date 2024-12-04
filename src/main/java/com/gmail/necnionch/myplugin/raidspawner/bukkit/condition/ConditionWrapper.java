@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.condition;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
@@ -10,15 +11,13 @@ import java.util.function.Consumer;
 public class ConditionWrapper {
 
     private final Timer timer;
-    private final Consumer<Runnable> runInMainThread;
     private final Condition condition;
     private final Consumer<ConditionWrapper> action;
     private @Nullable TimerTask timerTask;
     private @Nullable Condition.Trigger currentTrigger;
 
-    public ConditionWrapper(Timer timer, Consumer<Runnable> runInMainThread, Condition condition, Consumer<ConditionWrapper> action) {
+    public ConditionWrapper(Timer timer, Condition condition, Consumer<ConditionWrapper> action) {
         this.timer = timer;
-        this.runInMainThread = runInMainThread;
         this.condition = condition;
         this.action = action;
     }
@@ -50,7 +49,7 @@ public class ConditionWrapper {
             timerTask = new TimerTask() {
                 @Override
                 public void run() {
-                    runInMainThread.accept(trigger::action);
+                    RaidSpawnerUtil.runInMainThread(trigger::action);
                 }
             };
             timer.schedule(timerTask, trigger.getDelayTime());
