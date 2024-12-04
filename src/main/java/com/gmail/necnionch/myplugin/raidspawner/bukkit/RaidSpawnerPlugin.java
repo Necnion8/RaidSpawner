@@ -2,19 +2,22 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.Condition;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionProvider;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.RealClockCondition;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.PluginConfig;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin {
     private final PluginConfig pluginConfig = new PluginConfig(this);
     private final Map<String, ConditionProvider<?>> conditionProviders = new HashMap<>();
-    private final List<Condition> startConditions = new ArrayList<>();
+    private final List<ConditionWrapper> startConditions = new ArrayList<>();
+    private final Timer timer = new Timer("RaidSpawnerTimer", true);
+    private final Consumer<Runnable> runInMainThread = task -> getServer().getScheduler().runTask(this, task);
 
     @Override
     public void onEnable() {
@@ -23,22 +26,34 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
             return;
         }
 
-        createEventStartConditions();
+        setupInternalConditionProviders();
+
+        createConditions();
         initConditions();
     }
 
     @Override
     public void onDisable() {
+        timer.cancel();
+        clearConditions();
+        startConditions.forEach(ConditionWrapper::unload);
         conditionProviders.clear();
         startConditions.clear();
+
+        timer.purge();
     }
 
 
-    public void createEventStartConditions() {
-        conditionProviders.clear();
-        startConditions.clear();  // TODO: clear schedules
+    public void setupInternalConditionProviders() {
+        Stream.of(
+                new RealClockCondition.Provider()
+        ).forEach(cond -> conditionProviders.put(cond.getType(), cond));
+    }
+
+    public void createConditions() {
+        clearConditions();
         for (ConfigurationSection condConfig : pluginConfig.getEventStartConditions()) {
-            String condType = condConfig.getString("type", null);
+            String condType = condConfig.getString("type");
             if (!conditionProviders.containsKey(condType)) {
                 getLogger().severe("Unknown condition type: " + condType);
                 continue;
@@ -52,29 +67,23 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
                 continue;
             }
 
-            startConditions.add(condition);
+            startConditions.add(new ConditionWrapper(timer, runInMainThread, condition, this::onTrigger));
         }
         getLogger().info("Loaded " + startConditions.size() + " conditions");
     }
 
     public void initConditions() {
-        startConditions.forEach(this::startCondition);
+        startConditions.forEach(ConditionWrapper::start);
     }
 
-    public void startCondition(Condition condition) {
-        // TODO: create condition wrapper
-        Condition.Trigger trigger = new Condition.Trigger(() -> onTrigger(condition));
-        condition.start(trigger);
+    public void clearConditions() {
+        startConditions.forEach(ConditionWrapper::clear);
     }
 
-    public void clearCondition(Condition condition) {
-        condition.clear();
-    }
-
-    private void onTrigger(Condition condition) {
+    private void onTrigger(ConditionWrapper wrapper) {
+        Condition condition = wrapper.getCondition();
         getLogger().warning("onTrigger by " + condition);
-        clearCondition(condition);
-        startCondition(condition);
+        wrapper.start();
     }
 
 

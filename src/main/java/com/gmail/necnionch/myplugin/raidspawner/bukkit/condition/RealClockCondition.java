@@ -14,7 +14,7 @@ public class RealClockCondition implements Condition {
     private final TimeZone timeZone;
     private final int hours;
     private final int minutes;
-    private @Nullable Date currentTime;
+    private @Nullable Date targetTime;
 
     public RealClockCondition(TimeZone timeZone, int hours, int minutes) {
         this.timeZone = timeZone;
@@ -24,19 +24,20 @@ public class RealClockCondition implements Condition {
 
     @Override
     public void start(Trigger trigger) {
-        Calendar calender = Calendar.getInstance();
-        calender.clear();
-        calender.setTimeZone(timeZone);
+        Calendar calender = Calendar.getInstance(timeZone);
+        long currentMillis = calender.getTimeInMillis();
         calender.set(Calendar.HOUR_OF_DAY, hours);
         calender.set(Calendar.MINUTE, minutes);
+        calender.set(Calendar.SECOND, 0);
+        calender.set(Calendar.MILLISECOND, 0);
 
         // next day
-        if (System.currentTimeMillis() <= (calender.getTimeInMillis() * (1000 * 10))) {  // margin 10s
+        if (calender.getTimeInMillis() - currentMillis < 1000) {  // margin 1s
             calender.add(Calendar.HOUR_OF_DAY, 24);
         }
 
-        currentTime = calender.getTime();
-        trigger.actionOn(currentTime);
+        targetTime = calender.getTime();
+        trigger.actionOn(targetTime);
     }
 
     @Override
@@ -45,7 +46,7 @@ public class RealClockCondition implements Condition {
 
     @Override
     public @Nullable Long getRemainingTimePreview() {
-        return currentTime != null ? System.currentTimeMillis() - currentTime.getTime() : null;
+        return targetTime != null ? System.currentTimeMillis() - targetTime.getTime() : null;
     }
 
 

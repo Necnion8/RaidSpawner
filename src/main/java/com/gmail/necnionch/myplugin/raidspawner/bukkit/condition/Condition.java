@@ -9,6 +9,8 @@ public interface Condition {
 
     void clear();
 
+    default void unload() {}
+
     @Nullable Long getRemainingTimePreview();
 
 
@@ -30,7 +32,7 @@ public interface Condition {
         public void actionOn(Date date) {
             if (activated)
                 throw new IllegalStateException("Already activated");
-            delayTime = date.getTime();
+            delayTime = date.getTime() - System.currentTimeMillis();
         }
 
         public void action() {
@@ -42,10 +44,6 @@ public interface Condition {
 
         public boolean isActivated() {
             return activated;
-        }
-
-        public void clear() {
-            activated = false;
         }
 
         public @Nullable Long getDelayTime() {
