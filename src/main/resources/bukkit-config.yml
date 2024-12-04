@@ -12,14 +12,18 @@ event-start:
 raid:
   # ゲーム時間
   event-time-minutes: 30
+  # ウェーブ数
   waves: 5
+  # イベント中に付与する権限グループ
+  luckperms-group: in-raidspawner
+  # モブ設定
   mobs:
     - count: "ceil( land_players * (3 + land_chunks * 1.5) * (1 + 0.1 * wave) )"  # or number value
       # スポーン位置: Landから離すチャンク数
       chunk-distance: 2
       # スポーン対象
       enemies:
-        - plugin: mythicmobs
+        - source: mythicmobs
           type: MOB_TYPE
           priority: 10
           level: 1
