@@ -27,6 +27,14 @@ public class ConditionWrapper {
         return condition;
     }
 
+    public ConditionProvider<?> getConditionProvider() {
+        return condition.getProvider();
+    }
+
+    public String getType() {
+        return getConditionProvider().getType();
+    }
+
     public boolean isActivated() {
         return Optional.ofNullable(currentTrigger)
                 .map(Condition.Trigger::isActivated)

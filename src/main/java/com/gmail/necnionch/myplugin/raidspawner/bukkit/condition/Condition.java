@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.condition;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Date;
@@ -12,6 +13,8 @@ public interface Condition {
     default void unload() {}
 
     @Nullable Long getRemainingTimePreview();
+
+    @NotNull ConditionProvider<?> getProvider();
 
 
     class Trigger {

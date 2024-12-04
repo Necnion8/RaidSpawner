@@ -1,9 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.Condition;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionProvider;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.RealClockCondition;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.PluginConfig;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -46,7 +43,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
 
     public void setupInternalConditionProviders() {
         Stream.of(
-                new RealClockCondition.Provider()
+                new RealClockCondition.Provider(),
+                new TimerCondition.Provider()
         ).forEach(cond -> conditionProviders.put(cond.getType(), cond));
     }
 
@@ -80,10 +78,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
         startConditions.forEach(ConditionWrapper::clear);
     }
 
-    private void onTrigger(ConditionWrapper wrapper) {
-        Condition condition = wrapper.getCondition();
-        getLogger().warning("onTrigger by " + condition);
-        wrapper.start();
+    private void onTrigger(ConditionWrapper condition) {
+        getLogger().warning("onTrigger by " + condition.getType());
+        condition.start();
     }
 
 
