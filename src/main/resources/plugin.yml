@@ -4,8 +4,7 @@ main: com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin
 api-version: '1.14'
 author: Necnion8
 
-depend:
-  - Lands
-
 softdepend:
+  - Vault
+  - Lands
   - MythicMobs
