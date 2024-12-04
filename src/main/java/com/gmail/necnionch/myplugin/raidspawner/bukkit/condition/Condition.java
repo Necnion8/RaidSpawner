@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.condition;
 
+import me.angeschossen.lands.api.land.Land;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,9 +22,11 @@ public interface Condition {
         private boolean activated;
         private @Nullable Long delayTime;
         private final Runnable action;
+        private final @Nullable Land land;
 
-        public Trigger(Runnable action) {
+        public Trigger(Runnable action, @Nullable Land land) {
             this.action = action;
+            this.land = land;
         }
 
         public void actionOn(long millis) {
@@ -51,6 +54,10 @@ public interface Condition {
 
         public @Nullable Long getDelayTime() {
             return delayTime;
+        }
+
+        public @Nullable Land getLand() {
+            return land;
         }
 
     }

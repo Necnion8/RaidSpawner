@@ -1,26 +1,32 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.condition;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Optional;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.function.Consumer;
 
 public class ConditionWrapper {
 
     private final Timer timer;
     private final Condition condition;
-    private final Consumer<ConditionWrapper> action;
+    private final Consumer<ConditionWrapper> handler;
     private @Nullable TimerTask timerTask;
     private @Nullable Condition.Trigger currentTrigger;
+    private final List<Action> actions;
 
-    public ConditionWrapper(Timer timer, Condition condition, Consumer<ConditionWrapper> action) {
+    public ConditionWrapper(Timer timer, Condition condition, Consumer<ConditionWrapper> handler, List<Action> actions) {
         this.timer = timer;
         this.condition = condition;
-        this.action = action;
+        this.handler = handler;
+        this.actions = actions;
     }
+
+    public ConditionWrapper(Timer timer, Condition condition, Consumer<ConditionWrapper> handler) {
+        this(timer, condition, handler, new ArrayList<>());
+    }
+
 
     public Condition getCondition() {
         return condition;
@@ -42,7 +48,7 @@ public class ConditionWrapper {
 
     public void start() {
         clear();
-        Condition.Trigger trigger = currentTrigger = new Condition.Trigger(() -> action.accept(this));
+        Condition.Trigger trigger = currentTrigger = new Condition.Trigger(() -> this.handler.accept(this), null);
         condition.start(trigger);
 
         if (!trigger.isActivated() && trigger.getDelayTime() != null) {
@@ -72,4 +78,7 @@ public class ConditionWrapper {
         condition.unload();
     }
 
+    public List<Action> actions() {
+        return actions;
+    }
 }
