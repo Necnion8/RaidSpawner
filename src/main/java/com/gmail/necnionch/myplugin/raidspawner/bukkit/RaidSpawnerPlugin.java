@@ -1,7 +1,7 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.PluginConfig;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin {
-    private final PluginConfig pluginConfig = new PluginConfig(this);
+    private final RaidSpawnerConfig pluginConfig = new RaidSpawnerConfig(this);
     private final Map<String, ConditionProvider<?>> conditionProviders = new HashMap<>();
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
     private final Timer timer = new Timer("RaidSpawnerTimer", true);
@@ -48,7 +48,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
 
     public void createConditions() {
         clearConditions();
-        for (ConfigurationSection condConfig : pluginConfig.getEventStartConditions()) {
+        for (ConfigurationSection condConfig : pluginConfig.getStartConditions()) {
             String condType = condConfig.getString("type");
             if (!conditionProviders.containsKey(condType)) {
                 getLogger().severe("Unknown condition type: " + condType);
