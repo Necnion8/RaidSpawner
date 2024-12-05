@@ -11,38 +11,53 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.logging.Level;
 import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin {
     private final RaidSpawnerConfig pluginConfig = new RaidSpawnerConfig(this);
+    private final Timer timer = new Timer("RaidSpawner-Timer", true);
     private final Map<String, ConditionProvider<?>> conditionProviders = new HashMap<>();
     private final Map<String, ActionProvider<?>> actionProviders = new HashMap<>();
+    //
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
-    private final Timer timer = new Timer("RaidSpawnerTimer", true);
+    private final Map<Land, RaidSpawner> raids = new HashMap<>();
 
     @Override
     public void onEnable() {
-        if (!pluginConfig.load()) {
-            setEnabled(false);
-            return;
-        }
-
         setupInternalConditionProviders();
 
-        createConditions();
-        initConditions();
+        if (pluginConfig.load()) {
+            createStartConditions();
+            startStartConditions();
+        } else {
+            // show after server startup
+            getServer().getScheduler().runTask(this, () -> getLogger().warning(
+                    "There is a configuration error, please fix configuration and reload."));
+        }
     }
 
     @Override
     public void onDisable() {
-        timer.cancel();
-        clearConditions();
-        startConditions.forEach(ConditionWrapper::unload);
-        conditionProviders.clear();
-        startConditions.clear();
-        actionProviders.clear();
+        try {
+            raids.clear();
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE, "Exception in raids clear", e);
+        }
 
-        timer.purge();
+        timer.cancel();
+
+        try {
+            clearStartConditions();
+            startConditions.forEach(ConditionWrapper::unload);
+            startConditions.clear();
+
+            conditionProviders.clear();
+            actionProviders.clear();
+
+        } finally {
+            timer.purge();
+        }
     }
 
 
@@ -52,6 +67,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
                 new TimerCondition.Provider()
         ).forEach(cond -> conditionProviders.put(cond.getType(), cond));
     }
+
+    // util
 
     public Condition createCondition(ConfigurationSection conditionConfig) throws IllegalArgumentException, ConditionProvider.ConfigurationError {
         String condType = conditionConfig.getString("type");
@@ -68,9 +85,10 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
         return actionProviders.get(type).create(value, config);
     }
 
+    // event start condition
 
-    public void createConditions() {
-        clearConditions();
+    public void createStartConditions() {
+        clearStartConditions();
         for (ConfigurationSection condConfig : pluginConfig.getStartConditions()) {
             String type = condConfig.getString("type");
             Condition condition;
@@ -83,25 +101,28 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
                 getLogger().severe("Error condition config (in event-start, type " + type + "): " + e);
                 continue;
             }
-            startConditions.add(new ConditionWrapper(timer, condition, this::onTrigger));
+            startConditions.add(new ConditionWrapper(timer, condition, this::onStartTrigger));
         }
-        getLogger().info("Loaded " + startConditions.size() + " conditions");
     }
 
-    public void initConditions() {
+    public void startStartConditions() {
         startConditions.forEach(ConditionWrapper::start);
     }
 
-    public void clearConditions() {
+    public void clearStartConditions() {
         startConditions.forEach(ConditionWrapper::clear);
     }
 
-    private void onTrigger(ConditionWrapper condition) {
-        getLogger().warning("onTrigger by " + condition.getType());
+    private void onStartTrigger(ConditionWrapper condition) {
+        getLogger().warning("onStartTrigger by " + condition.getType());
         condition.start();
     }
 
-    // create active raid
+    // raids
+
+    public boolean isRunningRaid() {
+        return !raids.isEmpty();
+    }
 
     private void startRaidAll() {
 

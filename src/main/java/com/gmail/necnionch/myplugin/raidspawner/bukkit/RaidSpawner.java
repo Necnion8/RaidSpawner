@@ -19,7 +19,7 @@ public class RaidSpawner {
         return land;
     }
 
-    public List<ConditionWrapper> getConditions() {
+    public List<ConditionWrapper> conditions() {
         return conditions;
     }
 
