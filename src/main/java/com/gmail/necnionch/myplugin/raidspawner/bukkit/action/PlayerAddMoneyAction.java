@@ -5,8 +5,12 @@ import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.plugin.ServicesManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Optional;
 
 public class PlayerAddMoneyAction implements PlayerAction {
 
@@ -60,6 +64,20 @@ public class PlayerAddMoneyAction implements PlayerAction {
         public Economy getEconomy() {
             return economy;
         }
+
+
+        public static @Nullable Provider createAndHookEconomy(ServicesManager services) {
+            try {
+                Class.forName("net.milkbowl.vault.economy.Economy");
+            } catch (ClassNotFoundException e) {
+                return null;
+            }
+            return Optional.ofNullable(services.getRegistration(Economy.class))
+                    .map(RegisteredServiceProvider::getProvider)
+                    .map(Provider::new)
+                    .orElse(null);
+        }
+
     }
 
 }

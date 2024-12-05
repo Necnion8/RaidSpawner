@@ -1,10 +1,10 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.ActionProvider;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
+import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -22,10 +22,19 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
     //
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
     private final Map<Land, RaidSpawner> raids = new HashMap<>();
+    //
+    private @Nullable LandsIntegration lands;
+
+    @Override
+    public void onLoad() {
+        conditionProviders.clear();
+        actionProviders.clear();
+    }
 
     @Override
     public void onEnable() {
-        setupInternalConditionProviders();
+        lands = LandsIntegration.of(this);
+        setupInternalProviders();
 
         if (pluginConfig.load()) {
             createStartConditions();
@@ -35,6 +44,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
             getServer().getScheduler().runTask(this, () -> getLogger().warning(
                     "There is a configuration error, please fix configuration and reload."));
         }
+
+        getLogger().info("Active condition types: " + String.join(", ", conditionProviders.keySet()));
+        getLogger().info("Active action types: " + String.join(", ", actionProviders.keySet()));
     }
 
     @Override
@@ -60,12 +72,20 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
         }
     }
 
-
-    public void setupInternalConditionProviders() {
+    public void setupInternalProviders() {
         Stream.of(
                 new RealClockCondition.Provider(),
                 new TimerCondition.Provider()
-        ).forEach(cond -> conditionProviders.put(cond.getType(), cond));
+        )
+                .forEachOrdered(cond -> conditionProviders.put(cond.getType(), cond));
+
+        Stream.of(
+                new LandRemoveChunkAction.Provider(),
+                PlayerAddMoneyAction.Provider.createAndHookEconomy(getServer().getServicesManager()),
+                PlayerRemoveMoneyAction.Provider.createAndHookEconomy(getServer().getServicesManager())
+        )
+                .filter(Objects::nonNull)
+                .forEachOrdered(cond -> actionProviders.put(cond.getType(), cond));
     }
 
     // util
