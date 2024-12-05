@@ -8,6 +8,7 @@ import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -52,7 +53,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         try {
-            raids.clear();
+            clearStartConditions();
+            clearRaidAll();
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Exception in raids clear", e);
         }
@@ -60,7 +62,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
         timer.cancel();
 
         try {
-            clearStartConditions();
             startConditions.forEach(ConditionWrapper::unload);
             startConditions.clear();
 
@@ -68,6 +69,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
             actionProviders.clear();
 
         } finally {
+            lands = null;
             timer.purge();
         }
     }
@@ -81,11 +83,15 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
 
         Stream.of(
                 new LandRemoveChunkAction.Provider(),
-                PlayerAddMoneyAction.Provider.createAndHookEconomy(getServer().getServicesManager()),
-                PlayerRemoveMoneyAction.Provider.createAndHookEconomy(getServer().getServicesManager())
+                PlayerAddMoneyAction.Provider.createAndHookEconomy(this),
+                PlayerRemoveMoneyAction.Provider.createAndHookEconomy(this)
         )
                 .filter(Objects::nonNull)
-                .forEachOrdered(cond -> actionProviders.put(cond.getType(), cond));
+                .forEachOrdered(action -> actionProviders.put(action.getType(), action));
+    }
+
+    public @NotNull LandsIntegration getLandAPI() {
+        return Objects.requireNonNull(lands, "LandsIntegration is not hooked");
     }
 
     // util
@@ -134,8 +140,13 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
     }
 
     private void onStartTrigger(ConditionWrapper condition) {
-        getLogger().warning("onStartTrigger by " + condition.getType());
-        condition.start();
+        if (isRunningRaid()) {
+            getLogger().warning("Already running raids (ignored)");
+            return;
+        }
+
+        clearStartConditions();
+        startRaidAll();
     }
 
     // raids
@@ -145,7 +156,32 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
     }
 
     private void startRaidAll() {
+        if (isRunningRaid())
+            throw new IllegalStateException("Already running raids");
 
+        raids.clear();
+        for (Land land : getLandAPI().getLands()) {
+            raids.put(land, createRaidSpawner(land));
+        }
+
+        clearStartConditions();
+        raids.values().forEach(RaidSpawner::start);
+        getLogger().info("Raid Spawner Started");
+    }
+
+    private void clearRaidAll() {
+        if (!isRunningRaid())
+            return;
+
+        raids.values().forEach(RaidSpawner::clear);
+        raids.clear();
+        getLogger().info("Raid Spawner Ended");
+    }
+
+    private void clearRaidAllAndRestart() {
+        clearRaidAll();
+        clearStartConditions();
+        startStartConditions();
     }
 
     private RaidSpawner createRaidSpawner(Land land) {

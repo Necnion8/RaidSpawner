@@ -1,12 +1,12 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.action;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
-import org.bukkit.plugin.ServicesManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -67,13 +67,13 @@ public class PlayerRemoveMoneyAction implements PlayerAction {
 
 
 
-        public static @Nullable Provider createAndHookEconomy(ServicesManager services) {
+        public static @Nullable Provider createAndHookEconomy(RaidSpawnerPlugin plugin) {
             try {
                 Class.forName("net.milkbowl.vault.economy.Economy");
             } catch (ClassNotFoundException e) {
                 return null;
             }
-            return Optional.ofNullable(services.getRegistration(Economy.class))
+            return Optional.ofNullable(plugin.getServer().getServicesManager().getRegistration(Economy.class))
                     .map(RegisteredServiceProvider::getProvider)
                     .map(Provider::new)
                     .orElse(null);
