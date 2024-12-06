@@ -9,6 +9,8 @@ public class RaidSpawner {
 
     private final Land land;
     private final List<ConditionWrapper> conditions;
+    private boolean running;
+    private boolean lose;
 
     public RaidSpawner(Land land, List<ConditionWrapper> conditions) {
         this.land = land;
@@ -23,13 +25,32 @@ public class RaidSpawner {
         return conditions;
     }
 
+    public boolean isRunning() {
+        return running;
+    }
+
+    public boolean isLose() {
+        return lose;
+    }
 
     public void start() {
+        running = true;
         conditions.forEach(ConditionWrapper::start);
     }
 
     public void clear() {
+        running = false;
         conditions.forEach(ConditionWrapper::clear);
+    }
+
+    public void clearSetLose() {
+        lose = true;
+        clear();
+    }
+
+    public void clearSetWin() {
+        lose = false;
+        clear();
     }
 
 }

@@ -167,6 +167,17 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
         clearStartConditions();
         raids.values().forEach(RaidSpawner::start);
         getLogger().info("Raid Spawner Started");
+
+
+        // delay 1 tick
+        RaidSpawnerUtil.runInMainThread(() -> {
+            for (RaidSpawner spawner : raids.values()) {
+                if (spawner.getLand().getOnlinePlayers().size() == 0) {
+                    spawner.clearSetLose();
+                }
+            }
+
+        });
     }
 
     private void clearRaidAll() {
