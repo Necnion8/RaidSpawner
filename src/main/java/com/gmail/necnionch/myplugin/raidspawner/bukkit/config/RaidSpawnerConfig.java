@@ -1,6 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.config;
 
-import com.gmail.necnionch.myplugin.raidspawner.commit.BukkitConfigDriver;
+import com.gmail.necnionch.myplugin.raidspawner.common.BukkitConfigDriver;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;

@@ -1,4 +1,4 @@
-package com.gmail.necnionch.myplugin.raidspawner.commit;
+package com.gmail.necnionch.myplugin.raidspawner.common;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.ByteStreams;
