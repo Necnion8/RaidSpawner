@@ -47,7 +47,9 @@ public class ConditionWrapper {
     }
 
     public void start() {
-        clear();
+        if (currentTrigger != null && currentTrigger.isActivated()) {
+            clear();
+        }
         Condition.Trigger trigger = currentTrigger = new Condition.Trigger(() -> this.handler.accept(this), null);
         condition.start(trigger);
 

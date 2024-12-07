@@ -3,6 +3,7 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit.config;
 import com.gmail.necnionch.myplugin.raidspawner.common.BukkitConfigDriver;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,8 +15,24 @@ import java.util.stream.Collectors;
 
 public class RaidSpawnerConfig extends BukkitConfigDriver {
 
+    private RaidSetting raidSetting = RaidSetting.DEFAULTS;
+
     public RaidSpawnerConfig(JavaPlugin plugin) {
         super(plugin);
+    }
+
+    @Override
+    public boolean onLoaded(FileConfiguration configuration) {
+        ConfigurationSection config = Optional.ofNullable(configuration.getConfigurationSection("raid"))
+                .orElseGet(MemoryConfiguration::new);
+
+        raidSetting = new RaidSetting(
+                config.getInt("event-time-minutes", RaidSetting.DEFAULTS.eventTimeMinutes()),
+                config.getInt("waves", RaidSetting.DEFAULTS.maxWaves()),
+                config.getString("luckperms-group", RaidSetting.DEFAULTS.luckPermsGroup()),
+                RaidSetting.DEFAULTS.mobs()  // TODO: serialize mobs
+        );
+        return true;
     }
 
     private static List<ConfigurationSection> getConfigList(ConfigurationSection parent, String key) {
@@ -57,6 +74,11 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
     }
 
     //
+
+
+    public RaidSetting getRaidSetting() {
+        return raidSetting;
+    }
 
     public List<ConfigurationSection> getStartConditions() {
         return Optional.ofNullable(config.getConfigurationSection("event-start"))

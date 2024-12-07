@@ -4,9 +4,15 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,7 +21,7 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.stream.Stream;
 
-public final class RaidSpawnerPlugin extends JavaPlugin {
+public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     private final RaidSpawnerConfig pluginConfig = new RaidSpawnerConfig(this);
     private final Timer timer = new Timer("RaidSpawner-Timer", true);
     private final Map<String, ConditionProvider<?>> conditionProviders = new HashMap<>();
@@ -46,6 +52,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
                     "There is a configuration error, please fix configuration and reload."));
         }
 
+        getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("Active condition types: " + String.join(", ", conditionProviders.keySet()));
         getLogger().info("Active action types: " + String.join(", ", actionProviders.keySet()));
     }
@@ -146,22 +153,38 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
         }
 
         clearStartConditions();
-        startRaidAll();
+        startRaidAll(condition.getCondition());
     }
 
     // raids
 
+    /**
+     * いずれかの襲撃イベントを実行している場合は true を返す
+     */
     public boolean isRunningRaid() {
         return !raids.isEmpty();
     }
 
-    private void startRaidAll() {
+    /**
+     * 指定されたLandで襲撃イベントを実行している場合は true を返す
+     */
+    public boolean isRunningRaid(Land land) {
+        return raids.containsKey(land);
+    }
+
+    private boolean startRaidAll(@Nullable Condition reason) {
         if (isRunningRaid())
             throw new IllegalStateException("Already running raids");
 
         raids.clear();
         for (Land land : getLandAPI().getLands()) {
             raids.put(land, createRaidSpawner(land));
+        }
+
+        RaidSpawnsPreStartEvent myEvent = new RaidSpawnsPreStartEvent(raids.values(), reason);
+        getServer().getPluginManager().callEvent(myEvent);
+        if (myEvent.isCancelled() || raids.isEmpty()) {
+            return false;
         }
 
         clearStartConditions();
@@ -171,13 +194,15 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
 
         // delay 1 tick
         RaidSpawnerUtil.runInMainThread(() -> {
-            for (RaidSpawner spawner : raids.values()) {
-                if (spawner.getLand().getOnlinePlayers().size() == 0) {
+            for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+                if (spawner.getLand().getOnlinePlayers().isEmpty()) {
                     spawner.clearSetLose();
                 }
             }
 
         });
+
+        return true;
     }
 
     private void clearRaidAll() {
@@ -226,7 +251,32 @@ public final class RaidSpawnerPlugin extends JavaPlugin {
             conditions.add(condition);
         }
 
-        return new RaidSpawner(land, conditions);
+        return new RaidSpawner(land, conditions, pluginConfig.getRaidSetting());
+    }
+
+
+    // event
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onEndRaid(RaidSpawnEndEvent event) {
+        if (raids.values().remove(event.getRaid())) {
+            getLogger().info("Raid ended: " + event.getLand().getName() + " (" + event.getResult().name() + ")");
+
+            if (raids.isEmpty()) {
+                getLogger().info("Auto start conditions restarting");
+                startStartConditions();
+            }
+        }
+    }
+
+    @EventHandler
+    public void onQuitPlayer(PlayerQuitEvent event) {
+        for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+            Land land = spawner.getLand();
+            if (land.getOnlinePlayers().isEmpty()) {
+                spawner.clearSetLose();
+            }
+        }
     }
 
 
