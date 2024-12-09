@@ -45,7 +45,7 @@ public class RaidSpawner {
         return setting.maxWaves();
     }
 
-    public int getWaves() {
+    public int getWave() {
         return waves;
     }
 

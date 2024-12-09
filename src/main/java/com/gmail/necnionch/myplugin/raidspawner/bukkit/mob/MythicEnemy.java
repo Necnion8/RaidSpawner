@@ -6,6 +6,7 @@ import io.lumine.mythic.api.mobs.MobManager;
 import io.lumine.mythic.api.mobs.MythicMob;
 import io.lumine.mythic.bukkit.BukkitAdapter;
 import io.lumine.mythic.core.mobs.ActiveMob;
+import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -40,7 +41,7 @@ public class MythicEnemy implements Enemy {
     }
 
     @Override
-    public boolean spawn(World world, Location location) {
+    public boolean spawn(Land land, World world, Location location) {
         remove();
         activeMob = mob.spawn(BukkitAdapter.adapt(location), level);
         return activeMob != null;

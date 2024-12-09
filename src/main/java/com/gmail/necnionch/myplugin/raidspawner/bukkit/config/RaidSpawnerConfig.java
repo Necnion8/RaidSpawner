@@ -1,16 +1,17 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.config;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.common.BukkitConfigDriver;
+import net.objecthunter.exp4j.Expression;
+import net.objecthunter.exp4j.ExpressionBuilder;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class RaidSpawnerConfig extends BukkitConfigDriver {
@@ -30,10 +31,14 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 config.getInt("event-time-minutes", RaidSetting.DEFAULTS.eventTimeMinutes()),
                 config.getInt("waves", RaidSetting.DEFAULTS.maxWaves()),
                 config.getString("luckperms-group", RaidSetting.DEFAULTS.luckPermsGroup()),
-                RaidSetting.DEFAULTS.mobs()  // TODO: serialize mobs
+                Optional.ofNullable(getConfigList(config, "mobs"))
+                        .map(this::getMobSettings)
+                        .orElse(RaidSetting.DEFAULTS.mobs())
         );
         return true;
     }
+
+    //
 
     private static List<ConfigurationSection> getConfigList(ConfigurationSection parent, String key) {
         /*
@@ -71,6 +76,37 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 .orElseGet(() -> new Actions.Item[0]);
 
         return new Actions(playerActions, landActions);
+    }
+
+    private Function<RaidSpawner, Integer> createCountExpression(String exprString) {
+        Expression expr = new ExpressionBuilder(exprString)
+                .variables("land_players", "land_chunks", "wave", "online_players")
+                .build();
+
+        return spawner -> (int) Math.ceil(expr
+                .setVariable("land_players", spawner.getLand().getTrustedPlayers().size())
+                .setVariable("land_chunks", spawner.getLand().getChunksAmount())
+                .setVariable("wave", spawner.getWave())
+                .setVariable("online_players", spawner.getLand().getOnlinePlayers().size())
+                .evaluate());
+    }
+
+    private List<MobSetting> getMobSettings(List<ConfigurationSection> config) {
+        return config.stream().map(c -> new MobSetting(
+                createCountExpression(c.getString("count")),
+                c.getInt("chunk-distance"),
+                Optional.ofNullable(getConfigList(c, "enemies"))
+                        .map(this::getMobEnemies)
+                        .orElse(Collections.emptyList())
+        )).toList();
+    }
+
+    private List<MobSetting.Enemy> getMobEnemies(List<ConfigurationSection> config) {
+        return config.stream().map(c -> new MobSetting.Enemy(
+                c.getString("source"),
+                c.getInt("priority"),
+                null
+        )).collect(Collectors.toList());
     }
 
     //

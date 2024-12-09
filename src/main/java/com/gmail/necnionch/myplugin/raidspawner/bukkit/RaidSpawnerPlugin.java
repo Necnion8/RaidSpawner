@@ -6,6 +6,9 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.configuration.ConfigurationSection;
@@ -26,6 +29,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     private final Timer timer = new Timer("RaidSpawner-Timer", true);
     private final Map<String, ConditionProvider<?>> conditionProviders = new HashMap<>();
     private final Map<String, ActionProvider<?>> actionProviders = new HashMap<>();
+    private final Map<String, EnemyProvider<?>> enemyProviders = new HashMap<>();
     //
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
     private final Map<Land, RaidSpawner> raids = new HashMap<>();
@@ -55,6 +59,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("Active condition types: " + String.join(", ", conditionProviders.keySet()));
         getLogger().info("Active action types: " + String.join(", ", actionProviders.keySet()));
+        getLogger().info("Active enemy types: " + String.join(", ", enemyProviders.keySet()));
     }
 
     @Override
@@ -95,6 +100,13 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         )
                 .filter(Objects::nonNull)
                 .forEachOrdered(action -> actionProviders.put(action.getType(), action));
+
+        Stream.of(
+                new TestEnemy.Provider(),
+                MythicEnemy.Provider.createAndHookMythicMobs(this)
+        )
+                .filter(Objects::nonNull)
+                .forEachOrdered(provider -> enemyProviders.put(provider.getType(), provider));
     }
 
     public @NotNull LandsIntegration getLandAPI() {
