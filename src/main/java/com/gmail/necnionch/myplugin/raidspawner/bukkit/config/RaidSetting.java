@@ -1,6 +1,7 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.config;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
+import org.bukkit.configuration.MemoryConfiguration;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
@@ -19,7 +20,7 @@ public record RaidSetting(
             null,
             Collections.singletonList(new MobSetting(
                     s -> 3, 1, Collections.singletonList(new MobSetting.Enemy(
-                            "test", 1, new TestEnemy.Provider()
+                            "test", 1, new MemoryConfiguration(), new TestEnemy.Provider()
                     ))
             ))
     );

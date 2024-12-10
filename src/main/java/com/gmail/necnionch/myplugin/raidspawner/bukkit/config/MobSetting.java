@@ -18,12 +18,14 @@ public record MobSetting(
 
         private final String source;
         private final int priority;
+        private final ConfigurationSection config;
         private @Nullable EnemyProvider<?> provider;
 
-        public Enemy(String source, int priority, @Nullable EnemyProvider<?> provider) {
+        public Enemy(String source, int priority, ConfigurationSection config, @Nullable EnemyProvider<?> provider) {
             this.source = source;
             this.priority = priority;
             this.provider = provider;
+            this.config = config;
         }
 
         public String getSource() {
@@ -32,6 +34,10 @@ public record MobSetting(
 
         public int getPriority() {
             return priority;
+        }
+
+        public ConfigurationSection getConfig() {
+            return config;
         }
 
         @Nullable
@@ -46,7 +52,7 @@ public record MobSetting(
         public static Enemy serialize(ConfigurationSection config) {
             String source = config.getString("source");
             int priority = Math.max(1, config.getInt("priority"));
-            return new Enemy(source, priority, null);
+            return new Enemy(source, priority, config, null);
         }
     }
 

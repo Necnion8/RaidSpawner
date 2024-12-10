@@ -6,17 +6,29 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
 import me.angeschossen.lands.api.LandsIntegration;
+import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
+import me.angeschossen.lands.api.land.Area;
+import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
+import me.angeschossen.lands.api.player.LandPlayer;
+import org.bukkit.ChatColor;
+import org.bukkit.World;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,6 +47,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     private final Map<Land, RaidSpawner> raids = new HashMap<>();
     //
     private @Nullable LandsIntegration lands;
+    private @Nullable BukkitTask gameEndTimer;
 
     @Override
     public void onLoad() {
@@ -60,6 +73,34 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         getLogger().info("Active condition types: " + String.join(", ", conditionProviders.keySet()));
         getLogger().info("Active action types: " + String.join(", ", actionProviders.keySet()));
         getLogger().info("Active enemy types: " + String.join(", ", enemyProviders.keySet()));
+
+        getLogger().warning("==========");
+
+        Player p = getServer().getPlayer("Necnion8");
+        LandPlayer landPlayer = getLandAPI().getLandPlayer(p.getUniqueId());
+        Land land = landPlayer.getLands().iterator().next();
+
+        System.out.println("land: " + land.getName());
+        System.out.println("chunks: " + land.getChunksAmount() + "/" + land.getMaxChunks());
+        Area area = land.getDefaultArea();
+        System.out.println("area.getSpawn(): " + area.getSpawn());
+        UnloadedPosition spawnPos = land.getSpawnPosition();
+        System.out.println("land.getSpawnPosition(): " + spawnPos);
+
+        if (spawnPos != null) {
+            System.out.println("  xyz: " + spawnPos.getX() + " / " + spawnPos.getY() + " / " + spawnPos.getZ() + " (" + spawnPos.getWorldName() + ")");
+            World world = spawnPos.getWorld();
+            System.out.println("  w: " + world);
+            Container container = land.getContainer(world);
+            System.out.println("  container: " + container);
+
+            if (container != null) {
+                System.out.println("  areas: " + container.getAreas().size());
+                System.out.println("  chunks: " + container.getChunks().size());
+            }
+
+        }
+
     }
 
     @Override
@@ -84,6 +125,57 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             lands = null;
             timer.purge();
         }
+    }
+
+    @Override
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        // TODO: impl command
+        if (args.length == 0) {
+            sender.sendMessage("currentRaids: " + raids.size());
+            if (!raids.isEmpty()) {
+                sender.sendMessage(ChatColor.AQUA + "=== Raids ===");
+                for (RaidSpawner spawner : raids.values()) {
+                    sender.sendMessage(ChatColor.GOLD + "- raid: " + spawner.getLand().getName() + " land");
+                    sender.sendMessage("  wave: " + spawner.getWave() + "/" + spawner.getMaxWaves());
+                    List<Enemy> enemies = spawner.currentEnemies();
+                    sender.sendMessage("  alive: " + enemies.stream().filter(Enemy::isAlive).count() + "/" + enemies.size());
+                    sender.sendMessage("  running: " + spawner.isRunning() + " (lose: " + spawner.isLose() + ")");
+                }
+            }
+
+            List<ConditionWrapper> cond = startConditions;
+            if (!cond.isEmpty()) {
+                sender.sendMessage(ChatColor.AQUA + "=== Auto Start ===");
+                for (ConditionWrapper c : cond) {
+                    sender.sendMessage(ChatColor.GOLD + "- type: " + c.getType());
+                    sender.sendMessage("  activated: " + c.isActivated());
+                    int remaining = Optional.ofNullable(c.getCondition().getRemainingTimePreview())
+                            .map(v -> Math.round((float) v / 1000))
+                            .orElse(-1);
+                    sender.sendMessage("  remaining: " + remaining);
+                }
+            }
+
+        } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("me")) {
+            LandPlayer landPlayer = getLandAPI().getLandPlayer(((Player) sender).getUniqueId());
+            if (landPlayer == null) {
+                sender.sendMessage(ChatColor.RED + "No Land Player");
+                return true;
+            }
+
+            ArrayList<? extends Land> lands = new ArrayList<>(landPlayer.getLands());
+            if (lands.isEmpty()) {
+                sender.sendMessage(ChatColor.RED + "No Land joined");
+                return true;
+            }
+
+            Land land = lands.get(0);
+            sender.sendMessage("Start land raid: " + land.getName() + " (total " + lands.size() + " lands)");
+
+            sender.sendMessage("result: " + startRaid(land));
+        }
+
+        return true;
     }
 
     public void setupInternalProviders() {
@@ -214,12 +306,25 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         });
 
+        // game end
+        if (gameEndTimer != null) {
+            gameEndTimer.cancel();
+        }
+        gameEndTimer = getServer().getScheduler().runTaskLater(this, () -> {
+            new ArrayList<>(raids.values()).forEach(RaidSpawner::clearSetLose);
+        }, 20L * 60 * pluginConfig.getRaidSetting().eventTimeMinutes());
+
         return true;
     }
 
     private void clearRaidAll() {
         if (!isRunningRaid())
             return;
+
+        if (gameEndTimer != null) {
+            gameEndTimer.cancel();
+            gameEndTimer = null;
+        }
 
         raids.values().forEach(RaidSpawner::clear);
         raids.clear();
@@ -231,6 +336,44 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         clearStartConditions();
         startStartConditions();
     }
+
+    private boolean startRaid(Land land) {
+        if (raids.containsKey(land))
+            throw new IllegalStateException("Already running raids");
+
+        if (!getLandAPI().getLands().contains(land))
+            throw new IllegalStateException("Invalid land (no contains lands api)");
+
+        raids.put(land, createRaidSpawner(land));
+
+        // ここ以降 通常の開始と同じ処理
+
+        clearStartConditions();
+        raids.values().forEach(RaidSpawner::start);
+        getLogger().info("Raid Spawner Started");
+
+
+        // delay 1 tick
+        RaidSpawnerUtil.runInMainThread(() -> {
+            for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+                if (spawner.getLand().getOnlinePlayers().isEmpty()) {
+                    spawner.clearSetLose();
+                }
+            }
+
+        });
+
+        // game end
+        if (gameEndTimer != null) {
+            gameEndTimer.cancel();
+        }
+        gameEndTimer = getServer().getScheduler().runTaskLater(this, () -> {
+            new ArrayList<>(raids.values()).forEach(RaidSpawner::clearSetLose);
+        }, 20L * 60 * pluginConfig.getRaidSetting().eventTimeMinutes());
+
+        return true;
+    }
+
 
     private RaidSpawner createRaidSpawner(Land land) {
         List<ConditionWrapper> conditions = new ArrayList<>();
@@ -289,6 +432,18 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 spawner.clearSetLose();
             }
         }
+    }
+
+    @EventHandler(priority = EventPriority.LOW)
+    public void onDeathEntity(EntityDeathEvent event) {
+        System.out.println("on death");
+        for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+            if (!spawner.currentEnemies().stream().allMatch(Enemy::isAlive)) {
+                System.out.println(" -> no alive, to next");
+                spawner.tryNextWave();
+            }
+        }
+
     }
 
 

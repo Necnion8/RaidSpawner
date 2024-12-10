@@ -78,8 +78,11 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         return new Actions(playerActions, landActions);
     }
 
-    private Function<RaidSpawner, Integer> createCountExpression(String exprString) {
-        Expression expr = new ExpressionBuilder(exprString)
+    private Function<RaidSpawner, Integer> createCountExpression(Object exprValue) {
+        if (exprValue instanceof Number) {
+            return s -> ((Number) exprValue).intValue();
+        }
+        Expression expr = new ExpressionBuilder((String) exprValue)
                 .variables("land_players", "land_chunks", "wave", "online_players")
                 .build();
 
@@ -93,7 +96,7 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
 
     private List<MobSetting> getMobSettings(List<ConfigurationSection> config) {
         return config.stream().map(c -> new MobSetting(
-                createCountExpression(c.getString("count")),
+                createCountExpression(c.get("count")),
                 c.getInt("chunk-distance"),
                 Optional.ofNullable(getConfigList(c, "enemies"))
                         .map(this::getMobEnemies)
@@ -105,8 +108,9 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         return config.stream().map(c -> new MobSetting.Enemy(
                 c.getString("source"),
                 c.getInt("priority"),
+                c,
                 null
-        )).collect(Collectors.toList());
+                )).collect(Collectors.toList());
     }
 
     //
