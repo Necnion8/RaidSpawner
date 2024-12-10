@@ -8,8 +8,11 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEven
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import me.angeschossen.lands.api.land.Area;
+import me.angeschossen.lands.api.land.ChunkCoordinate;
+import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.jetbrains.annotations.Nullable;
@@ -23,15 +26,17 @@ public class RaidSpawner {
     private final Land land;
     private final List<ConditionWrapper> conditions;
     private final RaidSetting setting;
+    private final World world;
     private boolean running;
     private boolean lose;
     private int waves;
     private final List<Enemy> currentEnemies = new ArrayList<>();
 
-    public RaidSpawner(Land land, List<ConditionWrapper> conditions, RaidSetting setting) {
+    public RaidSpawner(Land land, List<ConditionWrapper> conditions, RaidSetting setting, World world) {
         this.land = land;
         this.conditions = conditions;
         this.setting = setting;
+        this.world = world;
     }
 
     public Land getLand() {
@@ -40,6 +45,10 @@ public class RaidSpawner {
 
     public List<ConditionWrapper> conditions() {
         return conditions;
+    }
+
+    public World getWorld() {
+        return world;
     }
 
     public boolean isRunning() {
@@ -162,8 +171,19 @@ public class RaidSpawner {
         // summon
         System.out.println("total enemies " + currentEnemies.size());
 
+        Container container = land.getContainer(world);
+        if (container == null) {
+            System.out.println("container is null");  // todo: check null
+
+        } else {
+            ArrayList<? extends ChunkCoordinate> chunks = new ArrayList<>(container.getChunks());
+            ChunkCoordinate chunk = chunks.get(random.nextInt(chunks.size()));
+            int x = chunk.getBlockX() / 2;
+            int z = chunk.getBlockZ() / 2;
+            Chunk bChunk = world.getChunkAt(chunk.getX(), chunk.getZ());
+            // todo: wee
+        }
         Area area = land.getDefaultArea();
-        World world = area.getSpawn().getWorld();
         Location location = area.getSpawn().toLocation();
 
         currentEnemies.forEach(e -> {

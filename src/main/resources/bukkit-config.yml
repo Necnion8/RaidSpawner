@@ -16,6 +16,8 @@ raid:
   waves: 5
   # イベント中に付与する権限グループ
   luckperms-group: in-raidspawner
+  # Landがあるワールド (nullでLandのスポーン設定されたワールドを選択)
+  world:
   # モブ設定
   mobs:
     - count: "ceil( land_players * (3 + land_chunks * 1.5) * (1 + 0.1 * wave) )"  # or number value

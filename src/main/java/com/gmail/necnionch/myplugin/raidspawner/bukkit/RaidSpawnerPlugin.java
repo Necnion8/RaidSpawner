@@ -276,13 +276,32 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return raids.containsKey(land);
     }
 
+    private @Nullable World getLandRaidWorld(Land land) {
+        String worldName = pluginConfig.getRaidSetting().world();
+        if (worldName != null) {
+            World world = getServer().getWorld(worldName);
+            if (world == null)
+                throw new IllegalArgumentException("World '" + worldName + "` is not loaded");
+            return world;
+        } else {
+            return Optional.ofNullable(land.getSpawnPosition())
+                    .map(UnloadedPosition::getWorld)
+                    .orElse(null);
+        }
+    }
+
     private boolean startRaidAll(@Nullable Condition reason) {
         if (isRunningRaid())
             throw new IllegalStateException("Already running raids");
 
         raids.clear();
         for (Land land : getLandAPI().getLands()) {
-            raids.put(land, createRaidSpawner(land));
+            World world = getLandRaidWorld(land);
+            if (world == null) {
+                getLogger().warning("Land '" + land.getName() + "` spawn world is null");
+                continue;
+            }
+            raids.put(land, createRaidSpawner(land, world));
         }
 
         RaidSpawnsPreStartEvent myEvent = new RaidSpawnsPreStartEvent(raids.values(), reason);
@@ -344,7 +363,11 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         if (!getLandAPI().getLands().contains(land))
             throw new IllegalStateException("Invalid land (no contains lands api)");
 
-        raids.put(land, createRaidSpawner(land));
+        World world = getLandRaidWorld(land);
+        if (world == null)
+            throw new IllegalArgumentException("Land '" + land.getName() + "` spawn world is null");
+
+        raids.put(land, createRaidSpawner(land, world));
 
         // ここ以降 通常の開始と同じ処理
 
@@ -375,7 +398,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     }
 
 
-    private RaidSpawner createRaidSpawner(Land land) {
+    private RaidSpawner createRaidSpawner(Land land, World world) {
         List<ConditionWrapper> conditions = new ArrayList<>();
 
         for (RaidSpawnerConfig.ConditionItem item : pluginConfig.getWinRewardConditions()) {
@@ -406,7 +429,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             conditions.add(condition);
         }
 
-        return new RaidSpawner(land, conditions, pluginConfig.getRaidSetting());
+        return new RaidSpawner(land, conditions, pluginConfig.getRaidSetting(), world);
     }
 
 
