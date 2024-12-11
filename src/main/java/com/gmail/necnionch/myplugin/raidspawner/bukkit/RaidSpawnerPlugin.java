@@ -205,6 +205,18 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return Objects.requireNonNull(lands, "LandsIntegration is not hooked");
     }
 
+    public Map<String, ConditionProvider<?>> conditionProviders() {
+        return conditionProviders;
+    }
+
+    public Map<String, ActionProvider<?>> actionProviders() {
+        return actionProviders;
+    }
+
+    public Map<String, EnemyProvider<?>> enemyProviders() {
+        return enemyProviders;
+    }
+
     // util
 
     public Condition createCondition(ConfigurationSection conditionConfig) throws IllegalArgumentException, ConditionProvider.ConfigurationError {
@@ -461,7 +473,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     public void onDeathEntity(EntityDeathEvent event) {
         System.out.println("on death");
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
-            if (!spawner.currentEnemies().stream().allMatch(Enemy::isAlive)) {
+            if (spawner.currentEnemies().stream().noneMatch(Enemy::isAlive)) {
                 System.out.println(" -> no alive, to next");
                 spawner.tryNextWave();
             }

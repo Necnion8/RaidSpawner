@@ -7,15 +7,13 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
-import me.angeschossen.lands.api.land.Area;
 import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.jetbrains.annotations.Nullable;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +21,7 @@ import java.util.Random;
 
 public class RaidSpawner {
 
+    private final RaidSpawnerPlugin plugin = JavaPlugin.getPlugin(RaidSpawnerPlugin.class);
     private final Land land;
     private final List<ConditionWrapper> conditions;
     private final RaidSetting setting;
@@ -79,7 +78,7 @@ public class RaidSpawner {
         tryNextWave();
     }
 
-    public void clear(@Nullable RaidSpawnEndEvent.Result result) {
+    public void clear(RaidSpawnEndEvent.Result result) {
         running = false;
         try {
             conditions.forEach(ConditionWrapper::clear);
@@ -109,9 +108,11 @@ public class RaidSpawner {
         if (!running)
             return;
 
+        System.out.println("tryNextWave | now wave: " + waves);
+
         if (waves < setting.maxWaves()) {
             waves++;
-
+            System.out.println("waves: " + waves);
             doWave();
 
         } else {
@@ -121,27 +122,48 @@ public class RaidSpawner {
     }
 
     private void doWave() {
+        Container container = land.getContainer(world);
+        if (container == null) {
+            System.out.println("container is null");  // todo: check null
+            return;
+        }
+
         currentEnemies.removeIf(e -> !e.isAlive());  // keep alive
-        List<MobSetting.Enemy> selected = new ArrayList<>();
         Random random = new Random();
 
+        // select enemy
+        System.out.println("setting.mobs -> " + setting.mobs().size());
+        List<MobSetting.Enemy> enemySettings = new ArrayList<>();
         for (MobSetting mobSetting : setting.mobs()) {
             List<MobSetting.Enemy> enemies = mobSetting.enemies();
+            System.out.println("  mob.enemies -> " + enemies.size());
             if (enemies.isEmpty())
                 continue;
 
-            for (int i = 0; i < mobSetting.count().apply(this); i++) {
-                int total = enemies.stream()
-                        .mapToInt(MobSetting.Enemy::getPriority)
-                        .sum();
+            int total = enemies.stream()
+                    .mapToInt(MobSetting.Enemy::getPriority)
+                    .sum();
 
-                int target = (int) (random.nextFloat() * total);
+            /*
+
+            e: 10
+            e: 20
+            e: 10
+            total = 40
+
+
+             */
+
+            int count = mobSetting.count().apply(this);
+            System.out.println("  spawn count: " + count);
+            for (int i = 0; i < count; i++) {
+                float target = random.nextFloat() * total;
                 int current = 0;
 
                 for (MobSetting.Enemy enemy : enemies) {
                     current += enemy.getPriority();
-                    if (current < target) {
-                        selected.add(enemy);
+                    if (target <= current) {
+                        enemySettings.add(enemy);
                         break;
                     }
                 }
@@ -149,8 +171,13 @@ public class RaidSpawner {
         }
 
         // get provider
-        for (MobSetting.Enemy enemyItem : selected) {
+        for (MobSetting.Enemy enemyItem : enemySettings) {
             EnemyProvider<?> provider = enemyItem.getProvider();
+            if (provider == null) {
+                provider = plugin.enemyProviders().get(enemyItem.getSource());
+                enemyItem.setProvider(provider);
+            }
+
             System.out.println("- enemy: source " + enemyItem.getSource());
 
             if (provider == null) {
@@ -163,7 +190,6 @@ public class RaidSpawner {
                     e.printStackTrace();
                     continue;
                 }
-                System.out.println("get");
                 currentEnemies.add(enemy);
             }
         }
@@ -171,25 +197,21 @@ public class RaidSpawner {
         // summon
         System.out.println("total enemies " + currentEnemies.size());
 
-        Container container = land.getContainer(world);
-        if (container == null) {
-            System.out.println("container is null");  // todo: check null
+        ArrayList<? extends ChunkCoordinate> chunks = new ArrayList<>(container.getChunks());
+        ChunkCoordinate chunk = chunks.get(random.nextInt(chunks.size()));
+        int x = chunk.getBlockX() + 8;
+        int z = chunk.getBlockZ() + 8;
+//        Chunk bChunk = world.getChunkAt(chunk.getX(), chunk.getZ());
 
-        } else {
-            ArrayList<? extends ChunkCoordinate> chunks = new ArrayList<>(container.getChunks());
-            ChunkCoordinate chunk = chunks.get(random.nextInt(chunks.size()));
-            int x = chunk.getBlockX() / 2;
-            int z = chunk.getBlockZ() / 2;
-            Chunk bChunk = world.getChunkAt(chunk.getX(), chunk.getZ());
-            // todo: wee
-        }
-        Area area = land.getDefaultArea();
-        Location location = area.getSpawn().toLocation();
+        Location location = world.getHighestBlockAt(x, z).getLocation();
+
+//        Area area = land.getDefaultArea();
+//        Location location = area.getSpawn().toLocation();
 
         currentEnemies.forEach(e -> {
             if (!e.isAlive()) {
                 if (e.spawn(land, world, location)) {
-                    System.out.println("spawn");
+                    System.out.println("spawn " + e.getProvider().getType() + " in " + world.getName() + " " + location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
                 } else {
                     System.out.println("cannot spawn");  // remove alive counter
                 }

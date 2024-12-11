@@ -8,11 +8,13 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Zombie;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.loot.LootTables;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Comparator;
 import java.util.Optional;
 
 public class TestEnemy implements Enemy {
@@ -28,18 +30,27 @@ public class TestEnemy implements Enemy {
     public boolean spawn(Land land, World world, Location location) {
         remove();
         entity = world.spawn(location, Zombie.class, z -> {
-            z.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, Integer.MAX_VALUE, 0, false), true);
+            z.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, true), true);
+            z.setLootTable(LootTables.EMPTY.getLootTable());
+            z.addScoreboardTag("RAIDSPAWNER_TEST");
             Optional.ofNullable(z.getEquipment()).ifPresent(inv -> {
                 inv.setItemInMainHand(new ItemStack(Material.DIAMOND_SWORD));
                 inv.setItemInMainHandDropChance(0);
+                inv.setHelmet(new ItemStack(Material.STONE_BUTTON));
+                inv.setHelmetDropChance(0);
             });
+
+            world.getPlayers().stream()
+                    .min(Comparator.comparingDouble(p -> p.getLocation().distance(location)))
+                    .ifPresent(z::setTarget);
+
         });
         return true;
     }
 
     @Override
     public boolean isAlive() {
-        return entity != null && !entity.isDead();
+        return entity != null && entity.isValid();
     }
 
     @Override
