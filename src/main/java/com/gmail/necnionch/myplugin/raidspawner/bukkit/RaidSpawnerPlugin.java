@@ -17,6 +17,7 @@ import me.angeschossen.lands.api.land.Area;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import me.angeschossen.lands.api.player.LandPlayer;
+import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.command.Command;
@@ -70,6 +71,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             getServer().getScheduler().runTask(this, () -> getLogger().warning(
                     "There is a configuration error, please fix configuration and reload."));
         }
+
+        hookPlaceholderAPI();
 
         getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("Active condition types: " + String.join(", ", conditionProviders.keySet()));
@@ -178,6 +181,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }
 
         return true;
+    }
+
+    public boolean hookPlaceholderAPI() {
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            setPlaceholderReplacer(PlaceholderAPI::setPlaceholders);
+            return true;
+        }
+        return false;
     }
 
     public void setupInternalProviders() {
