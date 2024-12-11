@@ -189,6 +189,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         Stream.of(
                 new LandRemoveChunkAction.Provider(),
+                new PlayerCommandAction.Provider(),
+                new PlayerExecuteCommandAction.Provider(),
+                new LandCommandAction.Provider(),
                 PlayerAddMoneyAction.Provider.createAndHookEconomy(this),
                 PlayerRemoveMoneyAction.Provider.createAndHookEconomy(this)
         )
