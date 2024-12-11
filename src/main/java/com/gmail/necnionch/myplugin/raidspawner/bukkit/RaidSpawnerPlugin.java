@@ -457,6 +457,54 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return new RaidSpawner(land, conditions, pluginConfig.getRaidSetting(), world);
     }
 
+    public void sendReward(RaidSpawner spawner, RaidSpawnEndEvent.Result result) {
+        // TODO: 必要な処理をイベント開始前に作成しとく
+        List<Action> actions = new ArrayList<>();
+        switch (result) {
+            case LOSE -> {
+                for (Actions.Item item : pluginConfig.getLoseRewardActions().getLandActions()) {
+                    String type = item.type();
+                    try {
+                        actions.add(createAction(type, item.value(), item.config()));
+                    } catch (IllegalArgumentException e) {
+                        getLogger().severe(e.getMessage());
+                    } catch (ActionProvider.ConfigurationError e) {
+                        getLogger().severe("Error action config (in lose, type " + type + "): " + e);
+                    }
+                }
+            }
+            case WIN -> {
+                for (ConditionWrapper condition : spawner.conditions()) {
+                    if (condition.isActivated()) {  // TODO: timer条件の場合は反転しなければならない
+                        actions.addAll(condition.actions());
+                        break;
+                    }
+                }
+            }
+            default -> {
+                return;
+            }
+        }
+
+        for (Action action : actions) {
+            if (action instanceof LandAction) {
+                try {
+                    ((LandAction) action).doAction(spawner.getLand());
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            } else if (action instanceof PlayerAction) {
+                for (Player player : spawner.getLand().getOnlinePlayers()) {
+                    try {
+                        ((PlayerAction) action).doAction(player);
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
 
     // event
 
@@ -464,6 +512,12 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     public void onEndRaid(RaidSpawnEndEvent event) {
         if (raids.values().remove(event.getRaid())) {
             getLogger().info("Raid ended: " + event.getLand().getName() + " (" + event.getResult().name() + ")");
+
+            try {
+                sendReward(event.getRaid(), event.getResult());
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
 
             if (raids.isEmpty()) {
                 getLogger().info("Auto start conditions restarting");
@@ -484,7 +538,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.LOW)
     public void onDeathEntity(EntityDeathEvent event) {
-        System.out.println("on death");
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
             if (spawner.currentEnemies().stream().noneMatch(Enemy::isAlive)) {
                 System.out.println(" -> no alive, to next");
