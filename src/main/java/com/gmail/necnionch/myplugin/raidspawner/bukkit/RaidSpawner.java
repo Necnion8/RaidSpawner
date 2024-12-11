@@ -210,8 +210,8 @@ public class RaidSpawner {
 
         currentEnemies.forEach(e -> {
             if (!e.isAlive()) {
-                if (e.spawn(land, world, location)) {
-                    System.out.println("spawn " + e.getProvider().getType() + " in " + world.getName() + " " + location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
+                if (e.spawn(this, world, location)) {
+                    System.out.println("spawn " + e.getProvider().getSource() + " in " + world.getName() + " " + location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
                 } else {
                     System.out.println("cannot spawn");  // remove alive counter
                 }

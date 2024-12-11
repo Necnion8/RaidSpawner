@@ -1,6 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.mob;
 
-import me.angeschossen.lands.api.land.Land;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -27,7 +27,7 @@ public class TestEnemy implements Enemy {
     }
 
     @Override
-    public boolean spawn(Land land, World world, Location location) {
+    public boolean spawn(RaidSpawner spawner, World world, Location location) {
         remove();
         entity = world.spawn(location, Zombie.class, z -> {
             z.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, true), true);

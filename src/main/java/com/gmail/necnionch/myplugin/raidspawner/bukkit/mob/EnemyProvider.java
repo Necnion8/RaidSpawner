@@ -5,14 +5,14 @@ import org.jetbrains.annotations.NotNull;
 
 public abstract class EnemyProvider<E extends Enemy> {
 
-    private final String type;
+    private final String source;
 
-    public EnemyProvider(@NotNull String type) {
-        this.type = type;
+    public EnemyProvider(@NotNull String source) {
+        this.source = source;
     }
 
-    public String getType() {
-        return type;
+    public String getSource() {
+        return source;
     }
 
     public abstract E create(ConfigurationSection config) throws ConfigurationError;

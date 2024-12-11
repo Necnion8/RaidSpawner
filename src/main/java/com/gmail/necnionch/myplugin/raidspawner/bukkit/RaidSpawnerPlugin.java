@@ -203,7 +203,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 MythicEnemy.Provider.createAndHookMythicMobs(this)
         )
                 .filter(Objects::nonNull)
-                .forEachOrdered(provider -> enemyProviders.put(provider.getType(), provider));
+                .forEachOrdered(provider -> enemyProviders.put(provider.getSource(), provider));
     }
 
     public @NotNull LandsIntegration getLandAPI() {
