@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.action;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
@@ -21,7 +22,7 @@ public class PlayerCommandAction implements PlayerAction {
     }
 
     @Override
-    public boolean doAction(Player player) {
+    public boolean doAction(RaidSpawner spawner, Player player) {
         for (String command : commands) {
             command = RaidSpawnerUtil.processPlaceholder(player, command);
             command = command.replace("%uuid%", player.getUniqueId().toString());

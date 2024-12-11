@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.action;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import me.angeschossen.lands.api.framework.blockutil.impl.Position;
 import me.angeschossen.lands.api.land.Area;
@@ -26,7 +27,7 @@ public class LandRemoveChunkAction implements LandAction {
     }
 
     @Override
-    public boolean doAction(Land land) {
+    public boolean doAction(RaidSpawner spawner, Land land) {
         Area area = land.getDefaultArea();
         Position spawn = area.getSpawn();
         if (spawn == null) {

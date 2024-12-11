@@ -1,9 +1,10 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.action;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import org.bukkit.entity.Player;
 
 public interface PlayerAction extends Action {
 
-    boolean doAction(Player player);
+    boolean doAction(RaidSpawner spawner, Player player);
 
 }

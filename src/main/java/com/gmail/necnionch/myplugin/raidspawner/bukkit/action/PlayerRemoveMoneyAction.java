@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.action;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import net.milkbowl.vault.economy.Economy;
@@ -25,7 +26,7 @@ public class PlayerRemoveMoneyAction implements PlayerAction {
     }
 
     @Override
-    public boolean doAction(Player player) {
+    public boolean doAction(RaidSpawner spawner, Player player) {
         EconomyResponse response = economy.withdrawPlayer(player, amount);
         if (!EconomyResponse.ResponseType.SUCCESS.equals(response.type)) {
             RaidSpawnerUtil.getLogger().severe("Failed to withdraw player (p:" + player.getUniqueId() + ", v:" + amount + "): " + response.errorMessage);

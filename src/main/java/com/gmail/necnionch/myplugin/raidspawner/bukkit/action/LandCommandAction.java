@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.action;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Bukkit;
@@ -21,7 +22,7 @@ public class LandCommandAction implements LandAction {
     }
 
     @Override
-    public boolean doAction(Land land) {
+    public boolean doAction(RaidSpawner spawner, Land land) {
         for (String command : commands) {
             command = RaidSpawnerUtil.processPlaceholder(null, command);
             command = command.replace("%land%", land.getName());

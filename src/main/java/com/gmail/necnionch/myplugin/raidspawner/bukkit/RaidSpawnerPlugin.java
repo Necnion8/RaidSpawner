@@ -489,14 +489,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         for (Action action : actions) {
             if (action instanceof LandAction) {
                 try {
-                    ((LandAction) action).doAction(spawner.getLand());
+                    ((LandAction) action).doAction(spawner, spawner.getLand());
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
             } else if (action instanceof PlayerAction) {
                 for (Player player : spawner.getLand().getOnlinePlayers()) {
                     try {
-                        ((PlayerAction) action).doAction(player);
+                        ((PlayerAction) action).doAction(spawner, player);
                     } catch (Throwable e) {
                         e.printStackTrace();
                     }
