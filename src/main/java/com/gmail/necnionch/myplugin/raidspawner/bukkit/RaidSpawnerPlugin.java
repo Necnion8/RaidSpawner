@@ -6,6 +6,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PlaceholderReplacer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
@@ -42,6 +43,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     private final Map<String, ConditionProvider<?>> conditionProviders = new HashMap<>();
     private final Map<String, ActionProvider<?>> actionProviders = new HashMap<>();
     private final Map<String, EnemyProvider<?>> enemyProviders = new HashMap<>();
+    private PlaceholderReplacer placeholderReplacer = (p, s) -> s;
     //
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
     private final Map<Land, RaidSpawner> raids = new HashMap<>();
@@ -218,6 +220,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     }
 
     // util
+
+    public PlaceholderReplacer getPlaceholderReplacer() {
+        return placeholderReplacer;
+    }
+
+    public void setPlaceholderReplacer(PlaceholderReplacer replacer) {
+        this.placeholderReplacer = replacer;
+    }
 
     public Condition createCondition(ConfigurationSection conditionConfig) throws IllegalArgumentException, ConditionProvider.ConfigurationError {
         String condType = conditionConfig.getString("type");

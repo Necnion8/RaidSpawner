@@ -7,6 +7,7 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
 - [Vault](https://dev.bukkit.org/projects/vault) (optional)
 - [Lands](https://www.spigotmc.org/resources/53313) (optional)
 - [MythicMobs](https://www.spigotmc.org/resources/5702) (optional)
+- [PlaceholderAPI](https://www.spigotmc.org/resources/6245) (optional)
 
 
 ## ライセンス

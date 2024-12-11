@@ -10,6 +10,7 @@ depend:
 softdepend:
   - Vault
   - MythicMobs
+  - PlaceholderAPI
 
 commands:
   raidspawner: {}

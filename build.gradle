@@ -24,6 +24,9 @@ repositories {
 
     // MythicMobs
     maven { url 'https://mvn.lumine.io/repository/maven-public/' }
+
+    // PlaceholderAPI
+    maven { url 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
 }
 
 dependencies {
@@ -32,6 +35,7 @@ dependencies {
     implementation 'io.lumine:Mythic-Dist:5.6.1'
     implementation "net.objecthunter:exp4j:0.4.8"
     implementation "com.github.MilkBowl:VaultAPI:1.7"
+    implementation 'me.clip:placeholderapi:2.11.6'
 }
 
 tasks.named("shadowJar", ShadowJar) {
