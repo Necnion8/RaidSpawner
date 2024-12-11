@@ -2,8 +2,6 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit.action;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
-import me.angeschossen.lands.api.framework.blockutil.impl.Position;
-import me.angeschossen.lands.api.land.Area;
 import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
@@ -28,14 +26,7 @@ public class LandRemoveChunkAction implements LandAction {
 
     @Override
     public boolean doAction(RaidSpawner spawner, Land land) {
-        Area area = land.getDefaultArea();
-        Position spawn = area.getSpawn();
-        if (spawn == null) {
-            RaidSpawnerUtil.getLogger().warning("Unable to get land world: area.getSpawn() is null");
-            return false;
-        }
-
-        World world = spawn.getWorld();
+        World world = spawner.getWorld();
         Container container = land.getContainer(world);
         if (container == null) {
             RaidSpawnerUtil.getLogger().warning("Unable to get land container: land.getContainer(w) is null");
