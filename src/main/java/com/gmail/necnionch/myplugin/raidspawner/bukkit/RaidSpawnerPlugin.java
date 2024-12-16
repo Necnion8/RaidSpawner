@@ -41,7 +41,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.function.Function;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
@@ -123,11 +122,13 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                     marker.add("IS_SAFE");
                 }
                 if (spawnChunks != null) {
-                    int spawnChunksCountPos = spawnChunks.stream()
-                            .map(pp -> pp.x() + "," + pp.z())
-                            .filter(chunkKey::equals)
-                            .collect(Collectors.toSet()).size();
-                    marker.add("SPAWN(" + spawnChunksCountPos + ")");
+                    List<String> lands = spawnChunks.stream()
+                            .filter(pp -> chunkKey.equals(pp.x() + "," + pp.z()))
+                            .map(LandSpawnerChunks.Pos::land)
+                            .map(Land::getName).toList();
+                    if (!lands.isEmpty()) {
+                        marker.add("SPAWN(" + String.join(", ", lands) + ")");
+                    }
                 }
                 String markerText = String.join(", ", marker);
 
@@ -243,89 +244,20 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     private Set<LandSpawnerChunks.Pos> spawnChunks;
 
     private void onFindChunkCommand(Player p, Land land) {
-        p.sendMessage("land: " + land.getName());
-        Container container = land.getContainer(p.getWorld());
-        if (container == null) {
-            p.sendMessage(ChatColor.RED + "No chunks in current world");
-            return;
-        }
-
-        Collection<? extends ChunkCoordinate> chunks = container.getChunks();
-        p.sendMessage("chunk count: " + chunks.size());
-
-        p.sendMessage("  " + chunks.stream()
-                .map(c -> ChatColor.GRAY.toString()+ c.getX() + "," + c.getZ())
-                .collect(Collectors.joining(ChatColor.DARK_AQUA + ", ")));
-
-
-
         int chunkDistance = 2;
-
         safeChunks = new HashSet<>();
         spawnChunks = new HashSet<>();
 
-        long startAt = System.currentTimeMillis();
+        List<LandSpawnerChunks> landSpawns = findSpawnChunks(chunkDistance);
+        p.sendMessage("total lands: " + landSpawns.size());
+        for (LandSpawnerChunks landChunks : landSpawns) {
+            p.sendMessage("- " + landChunks.getLand().getName());
+            p.sendMessage("    spawn chunks: " + landChunks.getChunks().size());
 
-        for (ChunkCoordinate chunk : chunks) {
-            // safeチャンクをマークする
-            for (int x = chunk.getX() - chunkDistance; x <= chunk.getX() + chunkDistance; x++) {
-                for (int z = chunk.getZ() - chunkDistance; z <= chunk.getZ() + chunkDistance; z++) {
-                    safeChunks.add(x + "," + z);
-                }
-            }
-
-            int minX = chunk.getX() - chunkDistance - 1;
-            int maxX = chunk.getX() + chunkDistance + 1;
-            int minZ = chunk.getZ() - chunkDistance - 1;
-            int maxZ = chunk.getZ() + chunkDistance + 1;
-
-            // spawnチャンクをマーク
-            for (int i = 0; i < chunkDistance * 2 + 2 + 1; i++) {
-                spawnChunks.add(new LandSpawnerChunks.Pos(land, minX + i, minZ));
-                spawnChunks.add(new LandSpawnerChunks.Pos(land, maxX, minZ + i));
-                spawnChunks.add(new LandSpawnerChunks.Pos(land, maxX - i, maxZ));
-                spawnChunks.add(new LandSpawnerChunks.Pos(land, minX, maxZ - i));
-            }
+            spawnChunks.addAll(landChunks.getChunks());
         }
 
-        int originalSpawnChunks = spawnChunks.size();
-        // safeチャンクがあるspawnチャンクを削除する
-        spawnChunks.removeIf(pos -> safeChunks.contains(pos.x() + "," + pos.z()));
-
-        p.sendMessage("processTime: " + Math.round(System.currentTimeMillis() - startAt) + "ms");
-        p.sendMessage("safeChunkCount: " + safeChunks.size());
-        p.sendMessage("spawnChunkCount: " + spawnChunks.size());
-        p.sendMessage("spawnChunkCount (original): " + originalSpawnChunks);
-
-        //
-        int safeChunkMinX = safeChunks.stream()
-                .mapToInt(k -> Integer.parseInt(k.split(",")[0]))
-                .min().orElseThrow();
-        int safeChunkMaxX = safeChunks.stream()
-                .mapToInt(k -> Integer.parseInt(k.split(",")[0]))
-                .max().orElseThrow();
-        int safeChunkMinZ = safeChunks.stream()
-                .mapToInt(k -> Integer.parseInt(k.split(",")[1]))
-                .min().orElseThrow();
-        int safeChunkMaxZ = safeChunks.stream()
-                .mapToInt(k -> Integer.parseInt(k.split(",")[1]))
-                .max().orElseThrow();
-        p.sendMessage("safeChunk min/max: " + safeChunkMinX + ", " + safeChunkMinZ + " / " + safeChunkMaxX + ", " + safeChunkMaxZ);
-
-        int spawnChunkMinX = spawnChunks.stream()
-                .mapToInt(LandSpawnerChunks.Pos::x)
-                .min().orElseThrow();
-        int spawnChunkMaxX = spawnChunks.stream()
-                .mapToInt(LandSpawnerChunks.Pos::x)
-                .max().orElseThrow();
-        int spawnChunkMinZ = spawnChunks.stream()
-                .mapToInt(LandSpawnerChunks.Pos::z)
-                .min().orElseThrow();
-        int spawnChunkMaxZ = spawnChunks.stream()
-                .mapToInt(LandSpawnerChunks.Pos::z)
-                .max().orElseThrow();
-        p.sendMessage("spawnChunk min/max: " + spawnChunkMinX + ", " + spawnChunkMinZ + " / " + spawnChunkMaxX + ", " + spawnChunkMaxZ);
-
+        p.sendMessage("total spawn chunks: " + landSpawns.stream().mapToInt(ls -> ls.getChunks().size()).sum());
 
     }
 
@@ -343,7 +275,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 .orElse(null);
     }
 
-    private void findSpawnChunks(int distanceChunks) {
+    private List<LandSpawnerChunks> findSpawnChunks(int distanceChunks) {
         LandsIntegration api = getLandAPI();
         Function<Land, World> worlds = getLandSpawnOrConfigWorld();  // throws IllegalArgumentException
 
@@ -400,6 +332,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             landSpawnerChunks.getChunks().removeIf(pos -> safeChunks.contains(pos.x() + "," + pos.z()));
         }
 
+        System.out.println("processTime: " + Math.round(System.currentTimeMillis() - startAt) + "ms");
+        return landChunks;
     }
 
     public boolean hookPlaceholderAPI() {
