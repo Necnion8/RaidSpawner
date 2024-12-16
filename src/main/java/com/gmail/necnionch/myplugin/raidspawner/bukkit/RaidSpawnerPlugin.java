@@ -11,14 +11,19 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.SetMultimap;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
-import me.angeschossen.lands.api.land.Area;
+import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import me.angeschossen.lands.api.player.LandPlayer;
 import me.clip.placeholderapi.PlaceholderAPI;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.ComponentBuilder;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -36,6 +41,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
@@ -79,30 +85,62 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         getLogger().info("Active action types: " + String.join(", ", actionProviders.keySet()));
         getLogger().info("Active enemy types: " + String.join(", ", enemyProviders.keySet()));
 
-        getLogger().warning("==========");
-
         Player p = getServer().getPlayer("Necnion8");
-        LandPlayer landPlayer = getLandAPI().getLandPlayer(p.getUniqueId());
-        Land land = landPlayer.getLands().iterator().next();
+        if (p != null) {
+            LandPlayer landPlayer = getLandAPI().getLandPlayer(p.getUniqueId());
+//        Land land = landPlayer.getLands().iterator().next();
+//
+//        System.out.println("land: " + land.getName());
+//        System.out.println("chunks: " + land.getChunksAmount() + "/" + land.getMaxChunks());
+//        Area area = land.getDefaultArea();
+//        System.out.println("area.getSpawn(): " + area.getSpawn());
+//        UnloadedPosition spawnPos = land.getSpawnPosition();
+//        System.out.println("land.getSpawnPosition(): " + spawnPos);
+//
+//        if (spawnPos != null) {
+//            System.out.println("  xyz: " + spawnPos.getX() + " / " + spawnPos.getY() + " / " + spawnPos.getZ() + " (" + spawnPos.getWorldName() + ")");
+//            World world = spawnPos.getWorld();
+//            System.out.println("  w: " + world);
+//            Container container = land.getContainer(world);
+//            System.out.println("  container: " + container);
+//
+//            if (container != null) {
+//                System.out.println("  areas: " + container.getAreas().size());
+//                System.out.println("  chunks: " + container.getChunks().size());
+//            }
+//
+//        }
 
-        System.out.println("land: " + land.getName());
-        System.out.println("chunks: " + land.getChunksAmount() + "/" + land.getMaxChunks());
-        Area area = land.getDefaultArea();
-        System.out.println("area.getSpawn(): " + area.getSpawn());
-        UnloadedPosition spawnPos = land.getSpawnPosition();
-        System.out.println("land.getSpawnPosition(): " + spawnPos);
+            getServer().getScheduler().scheduleSyncRepeatingTask(this, () -> {
+                Location pos = p.getLocation();
+                int posChunkX = pos.getChunk().getX();
+                int posChunkZ = pos.getChunk().getZ();
+                Land posLand = getLandAPI().getLandByUnloadedChunk(p.getWorld(), posChunkX, posChunkZ);
 
-        if (spawnPos != null) {
-            System.out.println("  xyz: " + spawnPos.getX() + " / " + spawnPos.getY() + " / " + spawnPos.getZ() + " (" + spawnPos.getWorldName() + ")");
-            World world = spawnPos.getWorld();
-            System.out.println("  w: " + world);
-            Container container = land.getContainer(world);
-            System.out.println("  container: " + container);
+                List<String> marker = new ArrayList<>();
+                String chunkKey = posChunkX + "," + posChunkZ;
+                if (safeChunks != null && safeChunks.contains(chunkKey)) {
+                    marker.add("IS_SAFE");
+                }
+                if (spawnChunks != null && spawnChunks.containsKey(chunkKey)) {
+                    marker.add("SPAWN(" + spawnChunks.get(chunkKey).size() + ")");
+                }
+                String markerText = String.join(", ", marker);
 
-            if (container != null) {
-                System.out.println("  areas: " + container.getAreas().size());
-                System.out.println("  chunks: " + container.getChunks().size());
-            }
+
+                p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder("")
+                        .append("Land: ").color(net.md_5.bungee.api.ChatColor.GRAY)
+                        .append(Optional.ofNullable(posLand)
+                                .map(Land::getName)
+                                .orElse(ChatColor.GRAY + "None")).color(net.md_5.bungee.api.ChatColor.WHITE)
+                        .append(" | ").color(net.md_5.bungee.api.ChatColor.GRAY)
+                        .append("Chunk: ").color(net.md_5.bungee.api.ChatColor.GRAY)
+                        .append(chunkKey).color(net.md_5.bungee.api.ChatColor.GOLD).underlined(true)
+                        .append(" | ").color(net.md_5.bungee.api.ChatColor.GRAY).underlined(false)
+                        .append(markerText.isEmpty() ? ChatColor.GRAY + "None" : markerText).color(net.md_5.bungee.api.ChatColor.GOLD)
+                        .create()
+                );
+            }, 0, 0);
 
         }
 
@@ -178,10 +216,119 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             sender.sendMessage("Start land raid: " + land.getName() + " (total " + lands.size() + " lands)");
 
             sender.sendMessage("result: " + startRaid(land));
+
+        } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("findchunks")) {
+            Land land = Optional.ofNullable(getLandAPI().getLandPlayer(((Player) sender).getUniqueId()))
+                    .map(p -> p.getLands().iterator())
+                    .filter(Iterator::hasNext)
+                    .map(Iterator::next)
+                    .orElse(null);
+
+            if (land == null) {
+                sender.sendMessage(ChatColor.RED + "No join land");
+                return true;
+            }
+            onFindChunkCommand((Player) sender, land);
+            return true;
         }
 
         return true;
     }
+
+    private Set<String> safeChunks;
+    private SetMultimap<String, Land> spawnChunks;
+
+    private void onFindChunkCommand(Player p, Land land) {
+        p.sendMessage("land: " + land.getName());
+        Container container = land.getContainer(p.getWorld());
+        if (container == null) {
+            p.sendMessage(ChatColor.RED + "No chunks in current world");
+            return;
+        }
+
+        Collection<? extends ChunkCoordinate> chunks = container.getChunks();
+        p.sendMessage("chunk count: " + chunks.size());
+
+        p.sendMessage("  " + chunks.stream()
+                .map(c -> ChatColor.GRAY.toString()+ c.getX() + "," + c.getZ())
+                .collect(Collectors.joining(ChatColor.DARK_AQUA + ", ")));
+
+
+
+        int chunkDistance = 2;
+
+        safeChunks = new HashSet<>();
+        spawnChunks = LinkedHashMultimap.create();
+
+        long startAt = System.currentTimeMillis();
+
+        for (ChunkCoordinate chunk : chunks) {
+            // safeチャンクをマークする
+            for (int x = chunk.getX() - chunkDistance; x <= chunk.getX() + chunkDistance; x++) {
+                for (int z = chunk.getZ() - chunkDistance; z <= chunk.getZ() + chunkDistance; z++) {
+                    safeChunks.add(x + "," + z);
+                }
+            }
+
+            int minX = chunk.getX() - chunkDistance - 1;
+            int maxX = chunk.getX() + chunkDistance + 1;
+            int minZ = chunk.getZ() - chunkDistance - 1;
+            int maxZ = chunk.getZ() + chunkDistance + 1;
+
+            // spawnチャンクをマーク
+            for (int i = 0; i < chunkDistance * 2 + 2 + 1; i++) {
+                spawnChunks.put(minX + i + "," + minZ, land);
+                spawnChunks.put(maxX + "," + (minZ + i), land);
+                spawnChunks.put(maxX - i + "," + maxZ, land);
+                spawnChunks.put(minX + "," + (maxZ - i), land);
+            }
+        }
+
+        int originalSpawnChunks = spawnChunks.size();
+        // safeチャンクがあるspawnチャンクを削除する
+        spawnChunks.keySet().removeAll(safeChunks);
+
+        p.sendMessage("processTime: " + Math.round(System.currentTimeMillis() - startAt) + "ms");
+        p.sendMessage("safeChunkCount: " + safeChunks.size());
+        p.sendMessage("spawnChunkCount: " + spawnChunks.size());
+        p.sendMessage("spawnChunkCount (original): " + originalSpawnChunks);
+
+        //
+        int safeChunkMinX = safeChunks.stream()
+                .mapToInt(k -> Integer.parseInt(k.split(",")[0]))
+                .min().orElseThrow();
+        int safeChunkMaxX = safeChunks.stream()
+                .mapToInt(k -> Integer.parseInt(k.split(",")[0]))
+                .max().orElseThrow();
+        int safeChunkMinZ = safeChunks.stream()
+                .mapToInt(k -> Integer.parseInt(k.split(",")[1]))
+                .min().orElseThrow();
+        int safeChunkMaxZ = safeChunks.stream()
+                .mapToInt(k -> Integer.parseInt(k.split(",")[1]))
+                .max().orElseThrow();
+        p.sendMessage("safeChunk min/max: " + safeChunkMinX + ", " + safeChunkMinZ + " / " + safeChunkMaxX + ", " + safeChunkMaxZ);
+
+        int spawnChunkMinX = spawnChunks.keySet().stream()
+                .mapToInt(k -> Integer.parseInt(k.split(",")[0]))
+                .min().orElseThrow();
+        int spawnChunkMaxX = spawnChunks.keySet().stream()
+                .mapToInt(k -> Integer.parseInt(k.split(",")[0]))
+                .max().orElseThrow();
+        int spawnChunkMinZ = spawnChunks.keySet().stream()
+                .mapToInt(k -> Integer.parseInt(k.split(",")[1]))
+                .min().orElseThrow();
+        int spawnChunkMaxZ = spawnChunks.keySet().stream()
+                .mapToInt(k -> Integer.parseInt(k.split(",")[1]))
+                .max().orElseThrow();
+        p.sendMessage("spawnChunk min/max: " + spawnChunkMinX + ", " + spawnChunkMinZ + " / " + spawnChunkMaxX + ", " + spawnChunkMaxZ);
+
+
+    }
+    record ChunkXZ(
+            int x,
+            int z
+    ) {}
+
 
     public boolean hookPlaceholderAPI() {
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {

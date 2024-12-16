@@ -203,7 +203,7 @@ public class RaidSpawner {
         int z = chunk.getBlockZ() + 8;
 //        Chunk bChunk = world.getChunkAt(chunk.getX(), chunk.getZ());
 
-        Location location = world.getHighestBlockAt(x, z).getLocation();
+        Location location = world.getHighestBlockAt(x, z).getLocation().add(0, 1, 0);
 
 //        Area area = land.getDefaultArea();
 //        Location location = area.getSpawn().toLocation();
