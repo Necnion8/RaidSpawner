@@ -11,6 +11,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.test.ChunkViewer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.test.LandSpawnerChunks;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
@@ -21,9 +22,7 @@ import me.angeschossen.lands.api.player.LandPlayer;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.ComponentBuilder;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -33,6 +32,10 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.MapMeta;
+import org.bukkit.map.MapView;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
@@ -86,6 +89,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         Player p = getServer().getPlayer("Necnion8");
         if (p != null) {
+            getServer().dispatchCommand(p, "raidspawner givemap");
+
             LandPlayer landPlayer = getLandAPI().getLandPlayer(p.getUniqueId());
 //        Land land = landPlayer.getLands().iterator().next();
 //
@@ -234,19 +239,52 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 return true;
             }
             onFindChunkCommand((Player) sender, land);
-            return true;
+
+        } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("givemap")) {
+            Player player = (Player) sender;
+            PlayerInventory inv = player.getInventory();
+
+            MapView view;
+            ItemStack itemStack;
+            MapMeta itemMeta;
+            ItemStack mainHandItem = inv.getItemInMainHand();
+            if (Material.FILLED_MAP.equals(mainHandItem.getType())) {
+                // override map
+                itemStack = mainHandItem;
+                view = ((MapMeta) mainHandItem.getItemMeta()).getMapView();
+            } else {
+                itemStack = new ItemStack(Material.FILLED_MAP);
+                view = Bukkit.createMap(player.getWorld());
+            }
+            itemMeta = (MapMeta) itemStack.getItemMeta();
+
+            view.setScale(MapView.Scale.NORMAL);
+            view.getRenderers().forEach(view::removeRenderer);
+            view.addRenderer(new ChunkViewer(this, player));
+            itemMeta.setMapView(view);
+
+            itemStack.setItemMeta(itemMeta);
+
+            if (!itemStack.equals(mainHandItem)) {
+                inv.setItemInMainHand(itemStack);
+                inv.addItem(mainHandItem);
+            }
+            player.updateInventory();
+
+            player.sendMessage("scale: " + view.getScale().name() + ", " + view.getCenterX());
+
         }
 
         return true;
     }
 
-    private Set<String> safeChunks;
-    private Set<LandSpawnerChunks.Pos> spawnChunks;
+    public final Set<String> safeChunks = new HashSet<>();
+    public final Set<LandSpawnerChunks.Pos> spawnChunks = Collections.synchronizedSet(new HashSet<>());
 
     private void onFindChunkCommand(Player p, Land land) {
         int chunkDistance = 2;
-        safeChunks = new HashSet<>();
-        spawnChunks = new HashSet<>();
+        safeChunks.clear();
+        spawnChunks.clear();
 
         List<LandSpawnerChunks> landSpawns = findSpawnChunks(chunkDistance);
         p.sendMessage("total lands: " + landSpawns.size());
