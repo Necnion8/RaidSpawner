@@ -18,11 +18,11 @@ raid:
   luckperms-group: in-raidspawner
   # Landがあるワールド (nullでLandのスポーン設定されたワールドを選択)
   world:
+  # スポーン位置: Landから離すチャンク数
+  mobs-distance-chunks: 2
   # モブ設定
   mobs:
     - count: "ceil( land_players * (3 + land_chunks * 1.5) * (1 + 0.1 * wave) )"  # or number value
-      # スポーン位置: Landから離すチャンク数
-      chunk-distance: 2
       # スポーン対象
       enemies:
         - source: mythicmobs

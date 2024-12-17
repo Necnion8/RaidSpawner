@@ -10,7 +10,6 @@ import java.util.function.Function;
 
 public record MobSetting(
         Function<RaidSpawner, Integer> count,
-        int distanceChunk,
         List<Enemy> enemies
 ) {
 

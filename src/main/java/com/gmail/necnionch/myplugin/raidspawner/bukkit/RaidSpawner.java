@@ -16,6 +16,7 @@ import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -26,16 +27,18 @@ public class RaidSpawner {
     private final List<ConditionWrapper> conditions;
     private final RaidSetting setting;
     private final World world;
+    private final List<Chunk> spawnChunks;
     private boolean running;
     private boolean lose;
     private int waves;
     private final List<Enemy> currentEnemies = new ArrayList<>();
 
-    public RaidSpawner(Land land, List<ConditionWrapper> conditions, RaidSetting setting, World world) {
+    public RaidSpawner(Land land, List<ConditionWrapper> conditions, RaidSetting setting, World world, List<Chunk> spawnChunks) {
         this.land = land;
         this.conditions = conditions;
         this.setting = setting;
         this.world = world;
+        this.spawnChunks = Collections.unmodifiableList(spawnChunks);
     }
 
     public Land getLand() {
@@ -218,6 +221,13 @@ public class RaidSpawner {
             }
         });
 
+    }
+
+
+    public record Chunk(Land land, World world, int x, int z) {
+        public String toString() {
+            return x + "," + z + "," + world.getName();
+        }
     }
 
 }

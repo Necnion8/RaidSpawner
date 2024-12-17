@@ -32,6 +32,7 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 config.getInt("waves", RaidSetting.DEFAULTS.maxWaves()),
                 config.getString("luckperms-group", RaidSetting.DEFAULTS.luckPermsGroup()),
                 config.getString("world", RaidSetting.DEFAULTS.world()),
+                config.getInt("mobs-distance-chunks", RaidSetting.DEFAULTS.mobsDistanceChunks()),
                 Optional.ofNullable(getConfigList(config, "mobs"))
                         .map(this::getMobSettings)
                         .orElse(RaidSetting.DEFAULTS.mobs())
@@ -98,7 +99,6 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
     private List<MobSetting> getMobSettings(List<ConfigurationSection> config) {
         return config.stream().map(c -> new MobSetting(
                 createCountExpression(c.get("count")),
-                c.getInt("chunk-distance"),
                 Optional.ofNullable(getConfigList(c, "enemies"))
                         .map(this::getMobEnemies)
                         .orElse(Collections.emptyList())

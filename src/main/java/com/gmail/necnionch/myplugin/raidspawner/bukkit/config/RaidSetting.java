@@ -12,6 +12,7 @@ public record RaidSetting(
         int maxWaves,
         @Nullable String luckPermsGroup,
         @Nullable String world,
+        int mobsDistanceChunks,
         List<MobSetting> mobs
 ) {
 
@@ -20,8 +21,9 @@ public record RaidSetting(
             5,
             null,
             null,
+            2,
             Collections.singletonList(new MobSetting(
-                    s -> 3, 1, Collections.singletonList(new MobSetting.Enemy(
+                    s -> 3, Collections.singletonList(new MobSetting.Enemy(
                             "test", 1, new MemoryConfiguration(), new TestEnemy.Provider()
                     ))
             ))

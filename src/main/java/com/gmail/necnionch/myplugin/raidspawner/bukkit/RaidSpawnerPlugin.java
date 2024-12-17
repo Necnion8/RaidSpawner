@@ -11,7 +11,6 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.test.LandSpawnerChunks;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
 import me.angeschossen.lands.api.land.ChunkCoordinate;
@@ -89,31 +88,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         Player p = getServer().getPlayer("Necnion8");
         if (p != null) {
             getServer().dispatchCommand(p, "raidspawner givemap");
-
-            LandPlayer landPlayer = getLandAPI().getLandPlayer(p.getUniqueId());
-//        Land land = landPlayer.getLands().iterator().next();
-//
-//        System.out.println("land: " + land.getName());
-//        System.out.println("chunks: " + land.getChunksAmount() + "/" + land.getMaxChunks());
-//        Area area = land.getDefaultArea();
-//        System.out.println("area.getSpawn(): " + area.getSpawn());
-//        UnloadedPosition spawnPos = land.getSpawnPosition();
-//        System.out.println("land.getSpawnPosition(): " + spawnPos);
-//
-//        if (spawnPos != null) {
-//            System.out.println("  xyz: " + spawnPos.getX() + " / " + spawnPos.getY() + " / " + spawnPos.getZ() + " (" + spawnPos.getWorldName() + ")");
-//            World world = spawnPos.getWorld();
-//            System.out.println("  w: " + world);
-//            Container container = land.getContainer(world);
-//            System.out.println("  container: " + container);
-//
-//            if (container != null) {
-//                System.out.println("  areas: " + container.getAreas().size());
-//                System.out.println("  chunks: " + container.getChunks().size());
-//            }
-//
-//        }
-
             getServer().getScheduler().scheduleSyncRepeatingTask(this, () -> {
                 Location pos = p.getLocation();
                 int posChunkX = pos.getChunk().getX();
@@ -128,7 +102,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 if (spawnChunks != null) {
                     List<String> lands = spawnChunks.stream()
                             .filter(pp -> chunkKey.equals(pp.x() + "," + pp.z()))
-                            .map(LandSpawnerChunks.Pos::land)
+                            .map(RaidSpawner.Chunks.Pos::land)
                             .map(Land::getName).toList();
                     if (!lands.isEmpty()) {
                         marker.add("SPAWN(" + String.join(", ", lands) + ")");
@@ -278,16 +252,16 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     }
 
     public final Set<String> safeChunks = new HashSet<>();
-    public final Set<LandSpawnerChunks.Pos> spawnChunks = Collections.synchronizedSet(new HashSet<>());
+    public final Set<RaidSpawner.Chunk> spawnChunks = Collections.synchronizedSet(new HashSet<>());
 
     private void onFindChunkCommand(Player p, Land land) {
         int chunkDistance = 2;
         safeChunks.clear();
         spawnChunks.clear();
 
-        List<LandSpawnerChunks> landSpawns = findSpawnChunks(chunkDistance);
+        List<RaidSpawner.Chunks> landSpawns = findLandsRaidChunks(getLandAPI().getLands(), chunkDistance);
         p.sendMessage("total lands: " + landSpawns.size());
-        for (LandSpawnerChunks landChunks : landSpawns) {
+        for (RaidSpawner.Chunks landChunks : landSpawns) {
             p.sendMessage("- " + landChunks.getLand().getName());
             p.sendMessage("    spawn chunks: " + landChunks.getChunks().size());
 
@@ -312,36 +286,29 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 .orElse(null);
     }
 
-    private List<LandSpawnerChunks> findSpawnChunks(int distanceChunks) {
-        LandsIntegration api = getLandAPI();
+    private Map<Land, List<RaidSpawner.Chunk>> findLandsRaidChunks(Collection<Land> lands) {
+        int distanceChunks = pluginConfig.getRaidSetting().mobsDistanceChunks();
         Function<Land, World> worlds = getLandSpawnOrConfigWorld();  // throws IllegalArgumentException
 
-        long startAt = System.currentTimeMillis();
+        Map<Land, List<RaidSpawner.Chunk>> landsRaidChunks = new HashMap<>();
+        Set<String> safeChunks = new HashSet<>();
 
-        List<LandSpawnerChunks> landChunks = new ArrayList<>();
-//        LinkedHashMultimap<String, Land> spawnChunks = LinkedHashMultimap.create();
-//        Set<LandSpawnerChunks.Pos> spawnChunks = new HashSet<>();
-
-
-        HashSet<String> safeChunks = new HashSet<>();
-
-        for (Land land : api.getLands()) {
+        for (Land land : lands) {
             World world = worlds.apply(land);
             if (world == null) {
-                getLogger().severe("Land '" + land.getName() + "` spawn world is null");
+                getLogger().severe("Land '" + land.getName() + "' spawn world is null");
                 continue;
             }
 
-            List<LandSpawnerChunks.Pos> chunks = new ArrayList<>();
-            LandSpawnerChunks landSpawnerChunks = new LandSpawnerChunks(land, world, chunks);
-            landChunks.add(landSpawnerChunks);
+            List<RaidSpawner.Chunk> chunks = new ArrayList<>();
+            landsRaidChunks.put(land, chunks);
 
             for (Container container : land.getContainers()) {
                 for (ChunkCoordinate chunk : container.getChunks()) {
                     // safeチャンクをマークする
                     for (int x = chunk.getX() - distanceChunks; x <= chunk.getX() + distanceChunks; x++) {
                         for (int z = chunk.getZ() - distanceChunks; z <= chunk.getZ() + distanceChunks; z++) {
-                            safeChunks.add(x + "," + z);
+                            safeChunks.add(x + "," + z + "," + world.getName());
                         }
                     }
 
@@ -352,25 +319,26 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                         int minZ = chunk.getZ() - distanceChunks - 1;
                         int maxZ = chunk.getZ() + distanceChunks + 1;
                         for (int i = 0; i < distanceChunks * 2 + 2 + 1; i++) {
-                            chunks.add(new LandSpawnerChunks.Pos(land, minX + i, minZ));
-                            chunks.add(new LandSpawnerChunks.Pos(land, maxX, minZ + i));
-                            chunks.add(new LandSpawnerChunks.Pos(land, maxX - i, maxZ));
-                            chunks.add(new LandSpawnerChunks.Pos(land, minX, maxZ - i));
+                            chunks.add(new RaidSpawner.Chunk(land, world, minX + i, minZ));
+                            chunks.add(new RaidSpawner.Chunk(land, world, maxX, minZ + i));
+                            chunks.add(new RaidSpawner.Chunk(land, world, maxX - i, maxZ));
+                            chunks.add(new RaidSpawner.Chunk(land, world, minX, maxZ - i));
                         }
                     }
 
                 }
-
             }
-
         }
 
-        for (LandSpawnerChunks landSpawnerChunks : landChunks) {
-            landSpawnerChunks.getChunks().removeIf(pos -> safeChunks.contains(pos.x() + "," + pos.z()));
+        for (Iterator<List<RaidSpawner.Chunk>> it = landsRaidChunks.values().iterator(); it.hasNext(); ) {
+            List<RaidSpawner.Chunk> landRaidChunks = it.next();
+            landRaidChunks.removeIf(c -> safeChunks.contains(c.toString()));
+            if (landRaidChunks.isEmpty()) {
+                it.remove();
+            }
         }
 
-        System.out.println("processTime: " + Math.round(System.currentTimeMillis() - startAt) + "ms");
-        return landChunks;
+        return landsRaidChunks;
     }
 
     public boolean hookPlaceholderAPI() {
@@ -502,33 +470,13 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return raids.containsKey(land);
     }
 
-    private @Nullable World getLandRaidWorld(Land land) {
-        String worldName = pluginConfig.getRaidSetting().world();
-        if (worldName != null) {
-            World world = getServer().getWorld(worldName);
-            if (world == null)
-                throw new IllegalArgumentException("World '" + worldName + "` is not loaded");
-            return world;
-        } else {
-            return Optional.ofNullable(land.getSpawnPosition())
-                    .map(UnloadedPosition::getWorld)
-                    .orElse(null);
-        }
-    }
-
     private boolean startRaidAll(@Nullable Condition reason) {
         if (isRunningRaid())
             throw new IllegalStateException("Already running raids");
 
         raids.clear();
-        for (Land land : getLandAPI().getLands()) {
-            World world = getLandRaidWorld(land);
-            if (world == null) {
-                getLogger().warning("Land '" + land.getName() + "` spawn world is null");
-                continue;
-            }
-            raids.put(land, createRaidSpawner(land, world));
-        }
+        findLandsRaidChunks(getLandAPI().getLands())
+                .forEach((key, value) -> raids.put(key, createRaidSpawner(value)));
 
         RaidSpawnsPreStartEvent myEvent = new RaidSpawnsPreStartEvent(raids.values(), reason);
         getServer().getPluginManager().callEvent(myEvent);
@@ -536,29 +484,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             return false;
         }
 
-        clearStartConditions();
-        raids.values().forEach(RaidSpawner::start);
-        getLogger().info("Raid Spawner Started");
-
-
-        // delay 1 tick
-        RaidSpawnerUtil.runInMainThread(() -> {
-            for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
-                if (spawner.getLand().getOnlinePlayers().isEmpty()) {
-                    spawner.clearSetLose();
-                }
-            }
-
-        });
-
-        // game end
-        if (gameEndTimer != null) {
-            gameEndTimer.cancel();
-        }
-        gameEndTimer = getServer().getScheduler().runTaskLater(this, () -> {
-            new ArrayList<>(raids.values()).forEach(RaidSpawner::clearSetLose);
-        }, 20L * 60 * pluginConfig.getRaidSetting().eventTimeMinutes());
-
+        processRaidStart();
         return true;
     }
 
@@ -589,18 +515,19 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         if (!getLandAPI().getLands().contains(land))
             throw new IllegalStateException("Invalid land (no contains lands api)");
 
-        World world = getLandRaidWorld(land);
+        World world = getLandSpawnOrConfigWorld().apply(land);
         if (world == null)
             throw new IllegalArgumentException("Land '" + land.getName() + "` spawn world is null");
 
-        raids.put(land, createRaidSpawner(land, world));
+        findLandsRaidChunks(Collections.singleton(land))
+                .forEach((key, value) -> raids.put(key, createRaidSpawner(value)));
+        return true;
+    }
 
-        // ここ以降 通常の開始と同じ処理
-
+    private void processRaidStart() {
         clearStartConditions();
         raids.values().forEach(RaidSpawner::start);
         getLogger().info("Raid Spawner Started");
-
 
         // delay 1 tick
         RaidSpawnerUtil.runInMainThread(() -> {
@@ -619,12 +546,15 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         gameEndTimer = getServer().getScheduler().runTaskLater(this, () -> {
             new ArrayList<>(raids.values()).forEach(RaidSpawner::clearSetLose);
         }, 20L * 60 * pluginConfig.getRaidSetting().eventTimeMinutes());
-
-        return true;
     }
 
 
-    private RaidSpawner createRaidSpawner(Land land, World world) {
+    private RaidSpawner createRaidSpawner(List<RaidSpawner.Chunk> raidChunks) {
+        RaidSpawner.Chunk first = raidChunks.iterator().next();
+        return createRaidSpawner(first.land(), first.world(), raidChunks);
+    }
+
+    private RaidSpawner createRaidSpawner(Land land, World world, List<RaidSpawner.Chunk> spawnChunks) {
         List<ConditionWrapper> conditions = new ArrayList<>();
 
         for (RaidSpawnerConfig.ConditionItem item : pluginConfig.getWinRewardConditions()) {
@@ -655,8 +585,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             conditions.add(condition);
         }
 
-        return new RaidSpawner(land, conditions, pluginConfig.getRaidSetting(), world);
+        return new RaidSpawner(land, conditions, pluginConfig.getRaidSetting(), world, spawnChunks);
     }
+
 
     public void sendReward(RaidSpawner spawner, RaidSpawnEndEvent.Result result) {
         // TODO: 必要な処理をイベント開始前に作成しとく
