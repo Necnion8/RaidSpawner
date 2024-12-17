@@ -232,39 +232,53 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         Map<Land, List<RaidSpawner.Chunk>> landsRaidChunks = new HashMap<>();
         Set<String> safeChunks = new HashSet<>();
 
-        for (Land land : lands) {
-            World world = worlds.apply(land);
-            if (world == null) {
-                getLogger().severe("Land '" + land.getName() + "' spawn world is null");
-                continue;
-            }
+        for (Land land : getLandAPI().getLands()) {
+            if (lands.contains(land)) {  // is raid
+                World world = worlds.apply(land);
+                if (world == null) {
+                    getLogger().severe("Land '" + land.getName() + "' spawn world is null");
+                    continue;
+                }
 
-            List<RaidSpawner.Chunk> chunks = new ArrayList<>();
-            landsRaidChunks.put(land, chunks);
+                List<RaidSpawner.Chunk> chunks = new ArrayList<>();
+                landsRaidChunks.put(land, chunks);
 
-            for (Container container : land.getContainers()) {
-                for (ChunkCoordinate chunk : container.getChunks()) {
-                    // safeチャンクをマークする
-                    for (int x = chunk.getX() - distanceChunks; x <= chunk.getX() + distanceChunks; x++) {
-                        for (int z = chunk.getZ() - distanceChunks; z <= chunk.getZ() + distanceChunks; z++) {
-                            safeChunks.add(x + "," + z + "," + world.getName());
+                for (Container container : land.getContainers()) {
+                    for (ChunkCoordinate chunk : container.getChunks()) {
+                        // safeチャンクをマークする
+                        for (int x = chunk.getX() - distanceChunks; x <= chunk.getX() + distanceChunks; x++) {
+                            for (int z = chunk.getZ() - distanceChunks; z <= chunk.getZ() + distanceChunks; z++) {
+                                safeChunks.add(x + "," + z + "," + container.getWorld().getName());
+                            }
+                        }
+
+                        if (world.equals(container.getWorld().getWorld())) {
+                            // spawnチャンクをマーク
+                            int minX = chunk.getX() - distanceChunks - 1;
+                            int maxX = chunk.getX() + distanceChunks + 1;
+                            int minZ = chunk.getZ() - distanceChunks - 1;
+                            int maxZ = chunk.getZ() + distanceChunks + 1;
+                            for (int i = 0; i < distanceChunks * 2 + 2 + 1; i++) {
+                                chunks.add(new RaidSpawner.Chunk(land, world, minX + i, minZ));
+                                chunks.add(new RaidSpawner.Chunk(land, world, maxX, minZ + i));
+                                chunks.add(new RaidSpawner.Chunk(land, world, maxX - i, maxZ));
+                                chunks.add(new RaidSpawner.Chunk(land, world, minX, maxZ - i));
+                            }
+                        }
+
+                    }
+                }
+
+            } else {  // no raid
+                for (Container container : land.getContainers()) {
+                    for (ChunkCoordinate chunk : container.getChunks()) {
+                        // safeチャンクをマークする
+                        for (int x = chunk.getX() - distanceChunks; x <= chunk.getX() + distanceChunks; x++) {
+                            for (int z = chunk.getZ() - distanceChunks; z <= chunk.getZ() + distanceChunks; z++) {
+                                safeChunks.add(x + "," + z + "," + container.getWorld().getName());
+                            }
                         }
                     }
-
-                    if (world.equals(container.getWorld().getWorld())) {
-                        // spawnチャンクをマーク
-                        int minX = chunk.getX() - distanceChunks - 1;
-                        int maxX = chunk.getX() + distanceChunks + 1;
-                        int minZ = chunk.getZ() - distanceChunks - 1;
-                        int maxZ = chunk.getZ() + distanceChunks + 1;
-                        for (int i = 0; i < distanceChunks * 2 + 2 + 1; i++) {
-                            chunks.add(new RaidSpawner.Chunk(land, world, minX + i, minZ));
-                            chunks.add(new RaidSpawner.Chunk(land, world, maxX, minZ + i));
-                            chunks.add(new RaidSpawner.Chunk(land, world, maxX - i, maxZ));
-                            chunks.add(new RaidSpawner.Chunk(land, world, minX, maxZ - i));
-                        }
-                    }
-
                 }
             }
         }
@@ -468,6 +482,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         findLandsRaidChunks(Collections.singleton(land))
                 .forEach((key, value) -> raids.put(key, createRaidSpawner(value)));
+
+        processRaidStart();
         return true;
     }
 

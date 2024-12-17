@@ -7,12 +7,12 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
-import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
@@ -200,19 +200,14 @@ public class RaidSpawner {
         // summon
         System.out.println("total enemies " + currentEnemies.size());
 
-        ArrayList<? extends ChunkCoordinate> chunks = new ArrayList<>(container.getChunks());
-        ChunkCoordinate chunk = chunks.get(random.nextInt(chunks.size()));
-        int x = chunk.getBlockX() + 8;
-        int z = chunk.getBlockZ() + 8;
-//        Chunk bChunk = world.getChunkAt(chunk.getX(), chunk.getZ());
-
-        Location location = world.getHighestBlockAt(x, z).getLocation().add(0, 1, 0);
-
-//        Area area = land.getDefaultArea();
-//        Location location = area.getSpawn().toLocation();
+        Chunk chunk = spawnChunks.get(random.nextInt(spawnChunks.size()));
+        org.bukkit.Chunk bChunk = world.getChunkAt(chunk.x, chunk.z);
 
         currentEnemies.forEach(e -> {
             if (!e.isAlive()) {
+                Block block = bChunk.getBlock(4 + random.nextInt(8), 0, 4 + random.nextInt(8));
+                Location location = world.getHighestBlockAt(block.getX(), block.getZ()).getLocation().add(.5, 1, .5);
+
                 if (e.spawn(this, world, location)) {
                     System.out.println("spawn " + e.getProvider().getSource() + " in " + world.getName() + " " + location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
                 } else {

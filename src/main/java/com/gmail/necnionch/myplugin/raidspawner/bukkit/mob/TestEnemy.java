@@ -33,6 +33,7 @@ public class TestEnemy implements Enemy {
             z.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, true), true);
             z.setLootTable(LootTables.EMPTY.getLootTable());
             z.addScoreboardTag("RAIDSPAWNER_TEST");
+            z.setRemoveWhenFarAway(false);
             Optional.ofNullable(z.getEquipment()).ifPresent(inv -> {
                 inv.setItemInMainHand(new ItemStack(Material.DIAMOND_SWORD));
                 inv.setItemInMainHandDropChance(0);
