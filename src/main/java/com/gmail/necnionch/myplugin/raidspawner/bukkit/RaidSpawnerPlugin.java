@@ -11,7 +11,6 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.test.ChunkViewer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.test.LandSpawnerChunks;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
@@ -260,7 +259,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
             view.setScale(MapView.Scale.NORMAL);
             view.getRenderers().forEach(view::removeRenderer);
-            view.addRenderer(new ChunkViewer(this, player));
+            view.addRenderer(new ChunkViewRenderer(this, player.getWorld()));
             itemMeta.setMapView(view);
 
             itemStack.setItemMeta(itemMeta);
