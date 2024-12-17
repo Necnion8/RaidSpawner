@@ -11,6 +11,8 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
 import me.angeschossen.lands.api.land.ChunkCoordinate;
@@ -18,9 +20,10 @@ import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import me.angeschossen.lands.api.player.LandPlayer;
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.ComponentBuilder;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -54,6 +57,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     //
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
     private final Map<Land, RaidSpawner> raids = new HashMap<>();
+    private @Nullable Multimap<String, RaidSpawner.Chunk> lastFindSpawnChunksResult;
     //
     private @Nullable LandsIntegration lands;
     private @Nullable BukkitTask gameEndTimer;
@@ -84,49 +88,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         getLogger().info("Active condition types: " + String.join(", ", conditionProviders.keySet()));
         getLogger().info("Active action types: " + String.join(", ", actionProviders.keySet()));
         getLogger().info("Active enemy types: " + String.join(", ", enemyProviders.keySet()));
-
-        Player p = getServer().getPlayer("Necnion8");
-        if (p != null) {
-            getServer().dispatchCommand(p, "raidspawner givemap");
-            getServer().getScheduler().scheduleSyncRepeatingTask(this, () -> {
-                Location pos = p.getLocation();
-                int posChunkX = pos.getChunk().getX();
-                int posChunkZ = pos.getChunk().getZ();
-                Land posLand = getLandAPI().getLandByUnloadedChunk(p.getWorld(), posChunkX, posChunkZ);
-
-                List<String> marker = new ArrayList<>();
-                String chunkKey = posChunkX + "," + posChunkZ;
-                if (safeChunks != null && safeChunks.contains(chunkKey)) {
-                    marker.add("IS_SAFE");
-                }
-                if (spawnChunks != null) {
-                    List<String> lands = spawnChunks.stream()
-                            .filter(pp -> chunkKey.equals(pp.x() + "," + pp.z()))
-                            .map(RaidSpawner.Chunks.Pos::land)
-                            .map(Land::getName).toList();
-                    if (!lands.isEmpty()) {
-                        marker.add("SPAWN(" + String.join(", ", lands) + ")");
-                    }
-                }
-                String markerText = String.join(", ", marker);
-
-
-                p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder("")
-                        .append("Land: ").color(net.md_5.bungee.api.ChatColor.GRAY)
-                        .append(Optional.ofNullable(posLand)
-                                .map(Land::getName)
-                                .orElse(ChatColor.GRAY + "None")).color(net.md_5.bungee.api.ChatColor.WHITE)
-                        .append(" | ").color(net.md_5.bungee.api.ChatColor.GRAY)
-                        .append("Chunk: ").color(net.md_5.bungee.api.ChatColor.GRAY)
-                        .append(chunkKey).color(net.md_5.bungee.api.ChatColor.GOLD).underlined(true)
-                        .append(" | ").color(net.md_5.bungee.api.ChatColor.GRAY).underlined(false)
-                        .append(markerText.isEmpty() ? ChatColor.GRAY + "None" : markerText).color(net.md_5.bungee.api.ChatColor.GOLD)
-                        .create()
-                );
-            }, 0, 0);
-
-        }
-
     }
 
     @Override
@@ -201,75 +162,53 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             sender.sendMessage("result: " + startRaid(land));
 
         } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("findchunks")) {
-            Land land = Optional.ofNullable(getLandAPI().getLandPlayer(((Player) sender).getUniqueId()))
-                    .map(p -> p.getLands().iterator())
-                    .filter(Iterator::hasNext)
-                    .map(Iterator::next)
-                    .orElse(null);
-
-            if (land == null) {
-                sender.sendMessage(ChatColor.RED + "No join land");
-                return true;
-            }
-            onFindChunkCommand((Player) sender, land);
+            onFindChunkCommand((Player) sender);
 
         } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("givemap")) {
-            Player player = (Player) sender;
-            PlayerInventory inv = player.getInventory();
-
-            MapView view;
-            ItemStack itemStack;
-            MapMeta itemMeta;
-            ItemStack mainHandItem = inv.getItemInMainHand();
-            if (Material.FILLED_MAP.equals(mainHandItem.getType())) {
-                // override map
-                itemStack = mainHandItem;
-                view = ((MapMeta) mainHandItem.getItemMeta()).getMapView();
-            } else {
-                itemStack = new ItemStack(Material.FILLED_MAP);
-                view = Bukkit.createMap(player.getWorld());
-            }
-            itemMeta = (MapMeta) itemStack.getItemMeta();
-
-            view.setScale(MapView.Scale.NORMAL);
-            view.getRenderers().forEach(view::removeRenderer);
-            view.addRenderer(new ChunkViewRenderer(this, player.getWorld()));
-            itemMeta.setMapView(view);
-
-            itemStack.setItemMeta(itemMeta);
-
-            if (!itemStack.equals(mainHandItem)) {
-                inv.setItemInMainHand(itemStack);
-                inv.addItem(mainHandItem);
-            }
-            player.updateInventory();
-
-            player.sendMessage("scale: " + view.getScale().name() + ", " + view.getCenterX());
-
+            onGiveMapCommand((Player) sender);
         }
 
         return true;
     }
 
-    public final Set<String> safeChunks = new HashSet<>();
-    public final Set<RaidSpawner.Chunk> spawnChunks = Collections.synchronizedSet(new HashSet<>());
+    private void onFindChunkCommand(Player p) {
+        findLandsRaidChunks(getLandAPI().getLands()).forEach((land, chunks) -> {
+            p.sendMessage("- " + land.getName() + " -> spawn " + chunks.size() + " chunks");
+        });
+        ChunkViewRenderer.RENDERERS.forEach(ChunkViewRenderer::updateLandsList);
+    }
 
-    private void onFindChunkCommand(Player p, Land land) {
-        int chunkDistance = 2;
-        safeChunks.clear();
-        spawnChunks.clear();
+    private void onGiveMapCommand(Player p) {
+        PlayerInventory inv = p.getInventory();
 
-        List<RaidSpawner.Chunks> landSpawns = findLandsRaidChunks(getLandAPI().getLands(), chunkDistance);
-        p.sendMessage("total lands: " + landSpawns.size());
-        for (RaidSpawner.Chunks landChunks : landSpawns) {
-            p.sendMessage("- " + landChunks.getLand().getName());
-            p.sendMessage("    spawn chunks: " + landChunks.getChunks().size());
-
-            spawnChunks.addAll(landChunks.getChunks());
+        MapView view;
+        ItemStack itemStack;
+        MapMeta itemMeta;
+        ItemStack mainHandItem = inv.getItemInMainHand();
+        if (Material.FILLED_MAP.equals(mainHandItem.getType())) {
+            // override map
+            itemStack = mainHandItem;
+            view = ((MapMeta) mainHandItem.getItemMeta()).getMapView();
+        } else {
+            itemStack = new ItemStack(Material.FILLED_MAP);
+            view = Bukkit.createMap(p.getWorld());
         }
+        itemMeta = (MapMeta) itemStack.getItemMeta();
 
-        p.sendMessage("total spawn chunks: " + landSpawns.stream().mapToInt(ls -> ls.getChunks().size()).sum());
+        view.setScale(MapView.Scale.NORMAL);
+        view.getRenderers().forEach(view::removeRenderer);
+        view.addRenderer(new ChunkViewRenderer(this, p.getWorld()));
+        itemMeta.setMapView(view);
 
+        itemStack.setItemMeta(itemMeta);
+
+        if (!itemStack.equals(mainHandItem)) {
+            inv.setItemInMainHand(itemStack);
+            inv.addItem(mainHandItem);
+        }
+        p.updateInventory();
+
+        p.sendMessage("scale: " + view.getScale().name() + ", " + view.getCenterX());
     }
 
     private Function<Land, World> getLandSpawnOrConfigWorld() {
@@ -330,15 +269,23 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             }
         }
 
+        lastFindSpawnChunksResult = LinkedHashMultimap.create();
         for (Iterator<List<RaidSpawner.Chunk>> it = landsRaidChunks.values().iterator(); it.hasNext(); ) {
             List<RaidSpawner.Chunk> landRaidChunks = it.next();
             landRaidChunks.removeIf(c -> safeChunks.contains(c.toString()));
             if (landRaidChunks.isEmpty()) {
                 it.remove();
+            } else {
+                landRaidChunks.forEach(chunk -> lastFindSpawnChunksResult.put(chunk.toString(), chunk));
             }
         }
 
         return landsRaidChunks;
+    }
+
+    @Nullable
+    public Multimap<String, RaidSpawner.Chunk> getLastFindSpawnChunksResult() {
+        return lastFindSpawnChunksResult;
     }
 
     public boolean hookPlaceholderAPI() {
