@@ -13,6 +13,14 @@ public interface Condition {
 
     default void unload() {}
 
+    /**
+     * トリガーされてない状態を true 状態として判定するかどうか<p>
+     * 開始トリガー以外での利用で効果があります (終了タイマーなど)
+     */
+    default boolean isInvertTrigger() {
+        return false;
+    }
+
     @Nullable Long getRemainingTimePreview();
 
     @NotNull ConditionProvider<?> getProvider();

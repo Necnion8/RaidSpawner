@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSetting;
@@ -22,29 +23,33 @@ public class RaidSpawner {
 
     private final RaidSpawnerPlugin plugin = JavaPlugin.getPlugin(RaidSpawnerPlugin.class);
     private final Land land;
-    private final List<ConditionWrapper> conditions;
     private final RaidSetting setting;
     private final World world;
     private final List<Chunk> spawnChunks;
+    private final Rewards rewards;
     private boolean running;
     private boolean lose;
     private int waves;
     private final List<Enemy> currentEnemies = new ArrayList<>();
 
-    public RaidSpawner(Land land, List<ConditionWrapper> conditions, RaidSetting setting, World world, List<Chunk> spawnChunks) {
+    public RaidSpawner(Land land, RaidSetting setting, World world, List<Chunk> spawnChunks, Rewards rewards) {
         this.land = land;
-        this.conditions = conditions;
         this.setting = setting;
         this.world = world;
         this.spawnChunks = Collections.unmodifiableList(spawnChunks);
+        this.rewards = rewards;
     }
 
     public Land getLand() {
         return land;
     }
 
-    public List<ConditionWrapper> conditions() {
-        return conditions;
+    public Rewards getRewards() {
+        return rewards;
+    }
+
+    public List<Chunk> getSpawnChunks() {
+        return spawnChunks;
     }
 
     public World getWorld() {
@@ -73,7 +78,7 @@ public class RaidSpawner {
 
     public void start() {
         running = true;
-        conditions.forEach(ConditionWrapper::start);
+        rewards.rewardConditions.forEach(ConditionWrapper::start);
 
         Bukkit.getPluginManager().callEvent(new RaidSpawnStartEvent(this));
         tryNextWave();
@@ -82,7 +87,7 @@ public class RaidSpawner {
     public void clear(RaidSpawnEndEvent.Result result) {
         running = false;
         try {
-            conditions.forEach(ConditionWrapper::clear);
+            rewards.rewardConditions.forEach(ConditionWrapper::clear);
             currentEnemies.forEach(enemy -> {
                 try {
                     enemy.remove();
@@ -238,5 +243,11 @@ public class RaidSpawner {
             return world.getChunkAt(x, z);
         }
     }
+
+    public record Rewards(
+            List<ConditionWrapper> rewardConditions,
+            List<Action> noConditionWinActions,
+            List<Action> loseActions
+    ) {}
 
 }

@@ -536,7 +536,10 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     public RaidSpawner createRaidSpawner(Land land, World world, List<RaidSpawner.Chunk> spawnChunks) {
         List<ConditionWrapper> conditions = new ArrayList<>();
+        List<Action> loseActions = new ArrayList<>();
+        List<Action> winElseActions = new ArrayList<>();
 
+        // win cond
         for (RaidSpawnerConfig.ConditionItem item : pluginConfig.getWinRewardConditions()) {
             // create condition
             String type = item.config().getString("type");
@@ -551,53 +554,93 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 continue;
             }
 
-            // create actions
+            // create player actions
             for (Actions.Item aItem : item.actions().getPlayerActions()) {
                 try {
                     condition.actions().add(createAction(aItem.type(), aItem.value(), aItem.config()));
                 } catch (IllegalArgumentException e) {
                     getLogger().severe(e.getMessage());
                 } catch (ActionProvider.ConfigurationError e) {
-                    getLogger().severe("Error action config (in win, type " + type + "): " + e);
+                    getLogger().severe("Error player action config (in win, type " + aItem.type() + "): " + e);
+                }
+            }
+            // create land actions
+            for (Actions.Item aItem : item.actions().getLandActions()) {
+                try {
+                    condition.actions().add(createAction(aItem.type(), aItem.value(), aItem.config()));
+                } catch (IllegalArgumentException e) {
+                    getLogger().severe(e.getMessage());
+                } catch (ActionProvider.ConfigurationError e) {
+                    getLogger().severe("Error land action config (in win, type " + aItem.type() + "): " + e);
                 }
             }
 
             conditions.add(condition);
         }
 
-        return new RaidSpawner(land, conditions, pluginConfig.getRaidSetting(), world, spawnChunks);
+        // win else
+        for (Actions.Item aItem : pluginConfig.getWinRewardElseActions().getPlayerActions()) {
+            try {
+                winElseActions.add(createAction(aItem.type(), aItem.value(), aItem.config()));
+            } catch (IllegalArgumentException e) {
+                getLogger().severe(e.getMessage());
+            } catch (ActionProvider.ConfigurationError e) {
+                getLogger().severe("Error player action config (in win-else, type " + aItem.type() + "): " + e);
+            }
+        }
+        for (Actions.Item aItem : pluginConfig.getWinRewardElseActions().getLandActions()) {
+            try {
+                winElseActions.add(createAction(aItem.type(), aItem.value(), aItem.config()));
+            } catch (IllegalArgumentException e) {
+                getLogger().severe(e.getMessage());
+            } catch (ActionProvider.ConfigurationError e) {
+                getLogger().severe("Error land action config (in win-else, type " + aItem.type() + "): " + e);
+            }
+        }
+
+        // lose
+        for (Actions.Item aItem : pluginConfig.getLoseRewardActions().getPlayerActions()) {
+            try {
+                loseActions.add(createAction(aItem.type(), aItem.value(), aItem.config()));
+            } catch (IllegalArgumentException e) {
+                getLogger().severe(e.getMessage());
+            } catch (ActionProvider.ConfigurationError e) {
+                getLogger().severe("Error player action config (in lose, type " + aItem.type() + "): " + e);
+            }
+        }
+        for (Actions.Item aItem : pluginConfig.getLoseRewardActions().getLandActions()) {
+            try {
+                loseActions.add(createAction(aItem.type(), aItem.value(), aItem.config()));
+            } catch (IllegalArgumentException e) {
+                getLogger().severe(e.getMessage());
+            } catch (ActionProvider.ConfigurationError e) {
+                getLogger().severe("Error land action config (in lose, type " + aItem.type() + "): " + e);
+            }
+        }
+
+        return new RaidSpawner(land, pluginConfig.getRaidSetting(), world, spawnChunks, new RaidSpawner.Rewards(
+                conditions, winElseActions, loseActions
+        ));
     }
 
     public void sendReward(RaidSpawner spawner, RaidSpawnEndEvent.Result result) {
-        // TODO: 必要な処理をイベント開始前に作成しとく
-        List<Action> actions = new ArrayList<>();
+        RaidSpawner.Rewards rewards = spawner.getRewards();
+        List<Action> actions;
+
         switch (result) {
-            case LOSE -> {
-                for (Actions.Item item : pluginConfig.getLoseRewardActions().getLandActions()) {
-                    String type = item.type();
-                    try {
-                        actions.add(createAction(type, item.value(), item.config()));
-                    } catch (IllegalArgumentException e) {
-                        getLogger().severe(e.getMessage());
-                    } catch (ActionProvider.ConfigurationError e) {
-                        getLogger().severe("Error action config (in lose, type " + type + "): " + e);
-                    }
-                }
-            }
-            case WIN -> {
-                for (ConditionWrapper condition : spawner.conditions()) {
-                    if (condition.isActivated()) {  // TODO: timer条件の場合は反転しなければならない
-                        actions.addAll(condition.actions());
-                        break;
-                    }
-                }
-            }
+            case LOSE -> actions = rewards.loseActions();
+            case WIN -> actions = rewards.rewardConditions().stream()
+                    .filter(cond -> cond.getCondition().isInvertTrigger() != cond.isActivated())
+                    .findFirst()
+                    .map(ConditionWrapper::actions)
+                    .orElseGet(rewards::noConditionWinActions);
             default -> {
                 return;
             }
         }
 
         for (Action action : actions) {
+            logDebug(() -> "reward: " + action.getProvider().getType() + " | " + action.getClass().getSimpleName());
             if (action instanceof LandAction) {
                 try {
                     ((LandAction) action).doAction(spawner, spawner.getLand());
