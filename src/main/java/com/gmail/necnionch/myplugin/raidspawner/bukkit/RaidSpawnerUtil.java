@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 public class RaidSpawnerUtil {
@@ -27,6 +28,10 @@ public class RaidSpawnerUtil {
             log = getPlugin().getLogger();
         }
         return log;
+    }
+
+    public static void d(Supplier<String> message) {
+        getPlugin().logDebug(message);
     }
 
     public static String processPlaceholder(@Nullable Player player, String string) {

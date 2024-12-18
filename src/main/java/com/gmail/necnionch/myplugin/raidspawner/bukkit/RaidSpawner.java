@@ -7,7 +7,6 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
-import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -111,11 +110,11 @@ public class RaidSpawner {
         if (!running)
             return;
 
-        System.out.println("tryNextWave | now wave: " + waves);
+        RaidSpawnerUtil.d(() -> "tryNextWave | now wave: " + waves + " | land: " + land.getName());
 
         if (waves < setting.maxWaves()) {
             waves++;
-            System.out.println("waves: " + waves);
+            RaidSpawnerUtil.d(() -> "waves: " + waves);
             doWave();
 
         } else {
@@ -135,11 +134,11 @@ public class RaidSpawner {
         Random random = new Random();
 
         // select enemy
-        System.out.println("setting.mobs -> " + setting.mobs().size());
+        RaidSpawnerUtil.d(() -> "setting.mobs -> " + setting.mobs().size() + " | land: " + land.getName());
         List<MobSetting.Enemy> enemySettings = new ArrayList<>();
         for (MobSetting mobSetting : setting.mobs()) {
             List<MobSetting.Enemy> enemies = mobSetting.enemies();
-            System.out.println("  mob.enemies -> " + enemies.size());
+            RaidSpawnerUtil.d(() -> "  mob.enemies -> " + enemies.size());
             if (enemies.isEmpty())
                 continue;
 
@@ -158,7 +157,7 @@ public class RaidSpawner {
              */
 
             int count = mobSetting.count().apply(this);
-            System.out.println("  spawn count: " + count);
+            RaidSpawnerUtil.d(() -> "  spawn count: " + count);
             for (int i = 0; i < count; i++) {
                 float target = random.nextFloat() * total;
                 int current = 0;
@@ -181,10 +180,10 @@ public class RaidSpawner {
                 enemyItem.setProvider(provider);
             }
 
-            System.out.println("- enemy: source " + enemyItem.getSource());
+            RaidSpawnerUtil.d(() -> "- enemy: source " + enemyItem.getSource());
 
             if (provider == null) {
-                System.out.println("no provided");
+                RaidSpawnerUtil.d(() -> "no provided");
             } else {
                 Enemy enemy;
                 try {
@@ -198,7 +197,7 @@ public class RaidSpawner {
         }
 
         // summon
-        System.out.println("total enemies " + currentEnemies.size());
+        RaidSpawnerUtil.d(() -> "total enemies " + currentEnemies.size());
 
         Chunk chunk = spawnChunks.get(random.nextInt(spawnChunks.size()));
         org.bukkit.Chunk bChunk = world.getChunkAt(chunk.x, chunk.z);
@@ -209,9 +208,9 @@ public class RaidSpawner {
                 Location location = world.getHighestBlockAt(block.getX(), block.getZ()).getLocation().add(.5, 1, .5);
 
                 if (e.spawn(this, world, location)) {
-                    System.out.println("spawn " + e.getProvider().getSource() + " in " + world.getName() + " " + location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
+                    RaidSpawnerUtil.d(() -> "spawn " + e.getProvider().getSource() + " in " + world.getName() + " " + location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
                 } else {
-                    System.out.println("cannot spawn");  // remove alive counter
+                    RaidSpawnerUtil.d(() -> "cannot spawn");  // TODO: remove alive counter
                 }
             }
         });

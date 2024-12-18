@@ -44,6 +44,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.stream.Stream;
 
@@ -54,6 +55,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     private final Map<String, ActionProvider<?>> actionProviders = new HashMap<>();
     private final Map<String, EnemyProvider<?>> enemyProviders = new HashMap<>();
     private PlaceholderReplacer placeholderReplacer = (p, s) -> s;
+    private boolean enableDebug;
     //
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
     private final Map<Land, RaidSpawner> raids = new HashMap<>();
@@ -74,6 +76,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         setupInternalProviders();
 
         if (pluginConfig.load()) {
+            enableDebug = pluginConfig.isEnableDebug();
             createStartConditions();
             startStartConditions();
         } else {
@@ -169,6 +172,12 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }
 
         return true;
+    }
+
+    public void logDebug(Supplier<String> message) {
+        if (enableDebug) {
+            getLogger().warning("[DEBUG]: " + message.get());
+        }
     }
 
     private void onFindChunkCommand(Player p) {
@@ -635,7 +644,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     public void onDeathEntity(EntityDeathEvent event) {
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
             if (spawner.currentEnemies().stream().noneMatch(Enemy::isAlive)) {
-                System.out.println(" -> no alive, to next");
+                logDebug(() -> " -> no alive, to next");
                 spawner.tryNextWave();
             }
         }

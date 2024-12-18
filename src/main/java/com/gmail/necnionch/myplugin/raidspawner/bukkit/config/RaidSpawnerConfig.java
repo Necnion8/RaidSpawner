@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 
 public class RaidSpawnerConfig extends BukkitConfigDriver {
 
+    private boolean enableDebug;
     private RaidSetting raidSetting = RaidSetting.DEFAULTS;
 
     public RaidSpawnerConfig(JavaPlugin plugin) {
@@ -24,6 +25,8 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
 
     @Override
     public boolean onLoaded(FileConfiguration configuration) {
+        enableDebug = configuration.getBoolean("debug", false);
+
         ConfigurationSection config = Optional.ofNullable(configuration.getConfigurationSection("raid"))
                 .orElseGet(MemoryConfiguration::new);
 
@@ -116,6 +119,9 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
 
     //
 
+    public boolean isEnableDebug() {
+        return enableDebug;
+    }
 
     public RaidSetting getRaidSetting() {
         return raidSetting;
