@@ -86,6 +86,15 @@ public class RaidSpawner {
 
     public void clear(RaidSpawnEndEvent.Result result) {
         running = false;
+
+        if (!RaidSpawnEndEvent.Result.CANCEL.equals(result)) {
+            try {
+                plugin.sendReward(this, result);
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
+
         try {
             rewards.rewardConditions.forEach(ConditionWrapper::clear);
             currentEnemies.forEach(enemy -> {

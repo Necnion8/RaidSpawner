@@ -53,6 +53,11 @@ public class RealClockCondition implements Condition {
         return targetTime != null ? targetTime.getTime() - System.currentTimeMillis() : null;
     }
 
+    @Override
+    public boolean isInvertTrigger() {
+        return true;
+    }
+
     @NotNull
     @Override
     public Provider getProvider() {

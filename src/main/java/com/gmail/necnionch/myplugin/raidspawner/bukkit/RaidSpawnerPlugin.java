@@ -627,15 +627,29 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     public void sendReward(RaidSpawner spawner, RaidSpawnEndEvent.Result result) {
         RaidSpawner.Rewards rewards = spawner.getRewards();
-        List<Action> actions;
+        List<Action> actions = null;
 
+        logDebug(() -> "on sendReward | land: " + spawner.getLand().getName());
         switch (result) {
-            case LOSE -> actions = rewards.loseActions();
-            case WIN -> actions = rewards.rewardConditions().stream()
-                    .filter(cond -> cond.getCondition().isInvertTrigger() != cond.isActivated())
-                    .findFirst()
-                    .map(ConditionWrapper::actions)
-                    .orElseGet(rewards::noConditionWinActions);
+            case LOSE -> {
+                logDebug(() -> "  result: lose");
+                actions = rewards.loseActions();
+            }
+            case WIN -> {
+                for (int i = 0; i < rewards.rewardConditions().size(); i++) {
+                    ConditionWrapper cond = rewards.rewardConditions().get(i);
+                    if (cond.getCondition().isInvertTrigger() != cond.isActivated()) {
+                        int index = i;
+                        logDebug(() -> "  result: win (cond index: " + index + ")");
+                        actions = cond.actions();
+                        break;
+                    }
+                }
+                if (actions == null) {
+                    logDebug(() -> "  result: win (else cond)");
+                    actions = rewards.noConditionWinActions();
+                }
+            }
             default -> {
                 return;
             }
@@ -667,12 +681,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     public void onEndRaid(RaidSpawnEndEvent event) {
         if (raids.values().remove(event.getRaid())) {
             getLogger().info("Raid ended: " + event.getLand().getName() + " (" + event.getResult().name() + ")");
-
-            try {
-                sendReward(event.getRaid(), event.getResult());
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
 
             if (raids.isEmpty()) {
                 if (gameEndTimer != null) {

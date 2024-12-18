@@ -32,6 +32,11 @@ public class TimerCondition implements Condition {
         return startAt != null ? startAt - System.currentTimeMillis() : null;
     }
 
+    @Override
+    public boolean isInvertTrigger() {
+        return true;
+    }
+
     @NotNull
     @Override
     public Provider getProvider() {
