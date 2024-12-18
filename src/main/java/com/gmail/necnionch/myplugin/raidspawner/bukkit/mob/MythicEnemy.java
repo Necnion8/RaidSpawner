@@ -10,6 +10,7 @@ import io.lumine.mythic.core.mobs.ActiveMob;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -60,6 +61,22 @@ public class MythicEnemy implements Enemy {
             return true;
         }
         return false;
+    }
+
+    @Nullable
+    @Override
+    public Entity getEntity() {
+        if (activeMob != null)
+            return activeMob.getEntity().getBukkitEntity();
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public Location getEntityLocation() {
+        if (activeMob != null)
+            return BukkitAdapter.adapt(activeMob.getLocation());
+        return null;
     }
 
     @NotNull

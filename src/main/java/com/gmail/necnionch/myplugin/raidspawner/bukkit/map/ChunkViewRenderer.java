@@ -1,5 +1,8 @@
-package com.gmail.necnionch.myplugin.raidspawner.bukkit;
+package com.gmail.necnionch.myplugin.raidspawner.bukkit.map;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
@@ -18,13 +21,15 @@ public class ChunkViewRenderer extends MapRenderer {
     private final RaidSpawnerPlugin plugin;
     private final MinecraftFont font = MinecraftFont.Font;
     private final World world;
+    private final Map<Land, RaidSpawner> raids;
     private int chunkScale = 3;
 
-    private final Map<String, Land> chunks = new HashMap<>();
+    private final Map<String, Land> landChunks = new HashMap<>();
 
     public ChunkViewRenderer(RaidSpawnerPlugin plugin, World world) {
         this.plugin = plugin;
         this.world = world;
+        this.raids = plugin.getCurrentRaids();
         RENDERERS.add(this);
     }
 
@@ -37,11 +42,11 @@ public class ChunkViewRenderer extends MapRenderer {
     }
 
     public void updateLandsList() {
-        chunks.clear();
+        landChunks.clear();
         plugin.getLandAPI().getLands().forEach(land -> Optional.ofNullable(land.getContainer(world))
                 .map(Container::getChunks)
                 .map(Collection::stream)
-                .ifPresent(s -> s.forEach(c -> chunks.put(c.getX() + "," + c.getZ(), land))));
+                .ifPresent(s -> s.forEach(c -> landChunks.put(c.getX() + "," + c.getZ(), land))));
     }
 
     @Override
@@ -74,13 +79,30 @@ public class ChunkViewRenderer extends MapRenderer {
     }
 
     private void renderCursor(MapCanvas canvas, Location location) {
-        float yaw = location.getYaw();
-        yaw = (yaw + 11.25f) % 360;
-        if (yaw < 0) {
-            yaw += 360;
-        }
         MapCursorCollection cursors = new MapCursorCollection();
-        cursors.addCursor(new MapCursor((byte) 1, (byte) 1, (byte) (int) (yaw / 360 * 16), MapCursor.Type.WHITE_POINTER, true));
+
+        double centerX = location.getX();
+        double centerZ = location.getZ();
+        // 生きてるモブを表示
+        raids.values().stream().flatMap(s -> s.currentEnemies().stream())
+                .filter(Enemy::isAlive)
+                .map(Enemy::getEntityLocation)
+                .filter(Objects::nonNull)
+                .forEach(pos -> {
+//                    int x = (int) Math.max(-128, Math.min((pos.getX() - centerX) / (chunkScale * 16), 127));
+                    int x = (int) Math.max(-128, Math.min((pos.getX() - centerX) / (128f / 16 / chunkScale), 127));  // TODO: 微妙にズレてる
+                    int z = (int) Math.max(-128, Math.min((pos.getZ() - centerZ) / (128f / 16 / chunkScale), 127));
+
+                    cursors.addCursor(new MapCursor(
+                            (byte) x,
+                            (byte) z,
+                            (byte) getMapCursorDirection(pos.getYaw()),
+                            MapCursor.Type.RED_POINTER,
+                            true
+                    ));
+                });
+
+        cursors.addCursor(new MapCursor((byte) 1, (byte) 1, (byte) getMapCursorDirection(location.getYaw()), MapCursor.Type.WHITE_POINTER, true));
         canvas.setCursors(cursors);
     }
 
@@ -96,7 +118,7 @@ public class ChunkViewRenderer extends MapRenderer {
 
                 boolean highlight = Math.floorMod(chunkX, 2) == Math.floorMod(chunkZ, 2);
                 byte colorValue;
-                if (chunks.containsKey(chunkX + "," + chunkZ)) {
+                if (landChunks.containsKey(chunkX + "," + chunkZ)) {
                     colorValue = highlight ? MapPalette.LIGHT_GREEN : MapPalette.DARK_GREEN;
                 } else if (spawnChunks != null && spawnChunks.values().stream().anyMatch(c -> world.equals(c.world()) && c.x() == chunkX && c.z() == chunkZ)) {
                     colorValue = highlight ? MapPalette.matchColor(141, 127, 199) : MapPalette.matchColor(80, 44, 230);
@@ -117,7 +139,7 @@ public class ChunkViewRenderer extends MapRenderer {
                 int chunkX = (int) Math.floor(posX / 16f);
                 int chunkZ = (int) Math.floor(posZ / 16f);
 
-                Land land = chunks.get(chunkX + "," + chunkZ);
+                Land land = landChunks.get(chunkX + "," + chunkZ);
                 if (land != null && !notifiedLands.contains(land)) {
                     int x2 = x, y2 = y;
                     canvas.drawText(x2, y2, font, colored(MapPalette.LIGHT_BROWN, land.getName()));
@@ -136,6 +158,14 @@ public class ChunkViewRenderer extends MapRenderer {
 
     private static String colored(byte colorMagicValue, String text) {
         return String.format("§%1$s;", colorMagicValue) + text;
+    }
+
+    private static int getMapCursorDirection(float yaw) {
+        yaw = (yaw + 11.25f) % 360;
+        if (yaw < 0) {
+            yaw += 360;
+        }
+        return (int) (yaw / 360 * 16);
     }
 
 }

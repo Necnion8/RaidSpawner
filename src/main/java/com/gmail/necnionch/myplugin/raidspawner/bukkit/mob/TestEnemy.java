@@ -64,6 +64,12 @@ public class TestEnemy implements Enemy {
         return false;
     }
 
+    @Override
+    @Nullable
+    public LivingEntity getEntity() {
+        return entity;
+    }
+
     @NotNull
     @Override
     public Provider getProvider() {

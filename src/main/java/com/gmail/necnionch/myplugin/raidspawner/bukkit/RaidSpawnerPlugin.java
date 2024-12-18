@@ -7,6 +7,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PlaceholderReplacer;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.map.ChunkViewRenderer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
@@ -58,7 +59,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     private boolean enableDebug;
     //
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
-    private final Map<Land, RaidSpawner> raids = new HashMap<>();
+    private final Map<Land, RaidSpawner> raids = Collections.synchronizedMap(new HashMap<>());
     private @Nullable Multimap<String, RaidSpawner.Chunk> lastFindSpawnChunksResult;
     //
     private @Nullable LandsIntegration lands;
@@ -361,6 +362,10 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return enemyProviders;
     }
 
+    public Map<Land, RaidSpawner> getCurrentRaids() {
+        return Collections.unmodifiableMap(raids);
+    }
+
     // util
 
     public PlaceholderReplacer getPlaceholderReplacer() {
@@ -440,7 +445,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return raids.containsKey(land);
     }
 
-    private boolean startRaidAll(@Nullable Condition reason) {
+    public boolean startRaidAll(@Nullable Condition reason) {
         if (isRunningRaid())
             throw new IllegalStateException("Already running raids");
 
@@ -458,7 +463,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return true;
     }
 
-    private void clearRaidAll() {
+    public void clearRaidAll() {
         if (!isRunningRaid())
             return;
 
@@ -472,13 +477,13 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         getLogger().info("Raid Spawner Ended");
     }
 
-    private void clearRaidAllAndRestart() {
+    public void clearRaidAllAndRestart() {
         clearRaidAll();
         clearStartConditions();
         startStartConditions();
     }
 
-    private boolean startRaid(Land land) {
+    public boolean startRaid(Land land) {
         if (raids.containsKey(land))
             throw new IllegalStateException("Already running raids");
 
@@ -496,7 +501,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return true;
     }
 
-    private void processRaidStart() {
+    public void processRaidStart() {
         clearStartConditions();
         raids.values().forEach(RaidSpawner::start);
         getLogger().info("Raid Spawner Started");
@@ -522,13 +527,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }, 20L * 60 * pluginConfig.getRaidSetting().eventTimeMinutes());
     }
 
+    //
 
-    private RaidSpawner createRaidSpawner(List<RaidSpawner.Chunk> raidChunks) {
+    public RaidSpawner createRaidSpawner(List<RaidSpawner.Chunk> raidChunks) {
         RaidSpawner.Chunk first = raidChunks.iterator().next();
         return createRaidSpawner(first.land(), first.world(), raidChunks);
     }
 
-    private RaidSpawner createRaidSpawner(Land land, World world, List<RaidSpawner.Chunk> spawnChunks) {
+    public RaidSpawner createRaidSpawner(Land land, World world, List<RaidSpawner.Chunk> spawnChunks) {
         List<ConditionWrapper> conditions = new ArrayList<>();
 
         for (RaidSpawnerConfig.ConditionItem item : pluginConfig.getWinRewardConditions()) {
@@ -561,7 +567,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         return new RaidSpawner(land, conditions, pluginConfig.getRaidSetting(), world, spawnChunks);
     }
-
 
     public void sendReward(RaidSpawner spawner, RaidSpawnEndEvent.Result result) {
         // TODO: 必要な処理をイベント開始前に作成しとく
@@ -626,6 +631,10 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             }
 
             if (raids.isEmpty()) {
+                if (gameEndTimer != null) {
+                    gameEndTimer.cancel();
+                    gameEndTimer = null;
+                }
                 getLogger().info("Auto start conditions restarting");
                 startStartConditions();
             }
