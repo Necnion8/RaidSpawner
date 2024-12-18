@@ -53,13 +53,7 @@ public class PlayerAddMoneyAction implements PlayerAction {
 
         @Override
         public PlayerAddMoneyAction create(Object value, @Nullable ConfigurationSection config) throws ConfigurationError {
-            try {
-                return new PlayerAddMoneyAction(this, Double.parseDouble(((String) value)));
-            } catch (ClassCastException | NullPointerException e) {
-                throw new ConfigurationError("Not number value: " + value);
-            } catch (NumberFormatException e) {
-                throw new ConfigurationError(e);
-            }
+            return new PlayerAddMoneyAction(this, parseDouble(value));
         }
 
         public Economy getEconomy() {

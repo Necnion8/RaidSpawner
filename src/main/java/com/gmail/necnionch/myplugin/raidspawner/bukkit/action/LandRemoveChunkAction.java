@@ -65,13 +65,7 @@ public class LandRemoveChunkAction implements LandAction {
 
         @Override
         public LandRemoveChunkAction create(Object value, @Nullable ConfigurationSection config) throws ConfigurationError {
-            try {
-                return new LandRemoveChunkAction(this, Integer.parseInt(((String) value)));
-            } catch (ClassCastException | NullPointerException e) {
-                throw new ConfigurationError("Not number value: " + value);
-            } catch (NumberFormatException e) {
-                throw new ConfigurationError(e);
-            }
+            return new LandRemoveChunkAction(this, parseInt(value));
         }
 
     }

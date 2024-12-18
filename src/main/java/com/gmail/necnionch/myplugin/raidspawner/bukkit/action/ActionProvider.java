@@ -33,4 +33,75 @@ public abstract class ActionProvider<A extends Action> {
         }
     }
 
+
+    public static int parseInt(Object obj) throws ConfigurationError {
+        try {
+            if (obj instanceof Number) {
+                return ((Number) obj).intValue();
+            } else {
+                return Integer.parseInt(String.valueOf(obj));
+            }
+        } catch (ClassCastException | NullPointerException e) {
+            throw new ConfigurationError("Not number value: " + obj);
+        } catch (NumberFormatException e) {
+            throw new ConfigurationError(e);
+        }
+    }
+
+    public static double parseDouble(Object obj) throws ConfigurationError {
+        try {
+            if (obj instanceof Number) {
+                return ((Number) obj).doubleValue();
+            } else {
+                return Double.parseDouble(String.valueOf(obj));
+            }
+        } catch (ClassCastException | NullPointerException e) {
+            throw new ConfigurationError("Not number value: " + obj);
+        } catch (NumberFormatException e) {
+            throw new ConfigurationError(e);
+        }
+    }
+
+    public static long parseLong(Object obj) throws ConfigurationError {
+        try {
+            if (obj instanceof Number) {
+                return ((Number) obj).longValue();
+            } else {
+                return Long.parseLong(String.valueOf(obj));
+            }
+        } catch (ClassCastException | NullPointerException e) {
+            throw new ConfigurationError("Not number value: " + obj);
+        } catch (NumberFormatException e) {
+            throw new ConfigurationError(e);
+        }
+    }
+
+    public static float parseFloat(Object obj) throws ConfigurationError {
+        try {
+            if (obj instanceof Number) {
+                return ((Number) obj).floatValue();
+            } else {
+                return Float.parseFloat(String.valueOf(obj));
+            }
+        } catch (ClassCastException | NullPointerException e) {
+            throw new ConfigurationError("Not number value: " + obj);
+        } catch (NumberFormatException e) {
+            throw new ConfigurationError(e);
+        }
+    }
+
+    public static short parseShort(Object obj) throws ConfigurationError {
+        try {
+            if (obj instanceof Number) {
+                return ((Number) obj).shortValue();
+            } else {
+                return Short.parseShort(String.valueOf(obj));
+            }
+        } catch (ClassCastException | NullPointerException e) {
+            throw new ConfigurationError("Not number value: " + obj);
+        } catch (NumberFormatException e) {
+            throw new ConfigurationError(e);
+        }
+    }
+
 }

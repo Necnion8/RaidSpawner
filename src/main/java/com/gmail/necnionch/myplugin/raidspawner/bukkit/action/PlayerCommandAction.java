@@ -52,11 +52,7 @@ public class PlayerCommandAction implements PlayerAction {
             if (value instanceof List<?>) {
                 list = ((List<?>) value).stream().map(String::valueOf).toList();
             } else {
-                try {
-                    list = Collections.singletonList((String) value);
-                } catch (ClassCastException e) {
-                    throw new ConfigurationError("Not string value: " + value);
-                }
+                list = Collections.singletonList(String.valueOf(value));
             }
             return new PlayerCommandAction(this, list);
         }
