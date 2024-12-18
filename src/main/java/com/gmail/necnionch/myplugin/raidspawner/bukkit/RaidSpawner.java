@@ -10,14 +10,13 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class RaidSpawner {
 
@@ -84,6 +83,14 @@ public class RaidSpawner {
         running = false;
         try {
             conditions.forEach(ConditionWrapper::clear);
+            currentEnemies.forEach(enemy -> {
+                try {
+                    enemy.remove();
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            });
+            currentEnemies.clear();
 
         } finally {
             Bukkit.getPluginManager().callEvent(new RaidSpawnEndEvent(this, result));
@@ -124,12 +131,6 @@ public class RaidSpawner {
     }
 
     private void doWave() {
-        Container container = land.getContainer(world);
-        if (container == null) {
-            System.out.println("container is null");  // todo: check null
-            return;
-        }
-
         currentEnemies.removeIf(e -> !e.isAlive());  // keep alive
         Random random = new Random();
 
@@ -145,16 +146,6 @@ public class RaidSpawner {
             int total = enemies.stream()
                     .mapToInt(MobSetting.Enemy::getPriority)
                     .sum();
-
-            /*
-
-            e: 10
-            e: 20
-            e: 10
-            total = 40
-
-
-             */
 
             int count = mobSetting.count().apply(this);
             RaidSpawnerUtil.d(() -> "  spawn count: " + count);
@@ -198,29 +189,53 @@ public class RaidSpawner {
 
         // summon
         RaidSpawnerUtil.d(() -> "total enemies " + currentEnemies.size());
+        for (Iterator<Enemy> it = currentEnemies.iterator(); it.hasNext(); ) {
+            Enemy enemy = it.next();
+            if (!enemy.isAlive()) {
+                int searchLimit = 3;
+                Location location;
 
-        Chunk chunk = spawnChunks.get(random.nextInt(spawnChunks.size()));
-        org.bukkit.Chunk bChunk = world.getChunkAt(chunk.x, chunk.z);
+                for (int i = 0; i < searchLimit; i++) {
+                    Chunk chunk = spawnChunks.get(random.nextInt(spawnChunks.size()));
+                    location = selectRandomSpawnLocationByChunk(chunk.getBukkitChunk(), random, searchLimit <= i + 1);
 
-        currentEnemies.forEach(e -> {
-            if (!e.isAlive()) {
-                Block block = bChunk.getBlock(4 + random.nextInt(8), 0, 4 + random.nextInt(8));
-                Location location = world.getHighestBlockAt(block.getX(), block.getZ()).getLocation().add(.5, 1, .5);
-
-                if (e.spawn(this, world, location)) {
-                    RaidSpawnerUtil.d(() -> "spawn " + e.getProvider().getSource() + " in " + world.getName() + " " + location.getBlockX() + ", " + location.getBlockY() + ", " + location.getBlockZ());
-                } else {
-                    RaidSpawnerUtil.d(() -> "cannot spawn");  // TODO: remove alive counter
+                    if (location != null) {
+                        final Location pos = location;
+                        if (enemy.spawn(this, world, pos)) {
+                            RaidSpawnerUtil.d(() -> "spawn " + enemy.getProvider().getSource() + " in " + world.getName() + " " + pos.getBlockX() + ", " + pos.getBlockY() + ", " + pos.getBlockZ());
+                        } else {
+                            RaidSpawnerUtil.d(() -> "cannot spawn");
+                            it.remove();
+                        }
+                        break;
+                    }
                 }
             }
-        });
+        }
+    }
 
+    private @Nullable Location selectRandomSpawnLocationByChunk(org.bukkit.Chunk chunk, Random random, boolean ignoreBlockTest) {
+        for (int i = 0; i < 8; i++) {  // limit 8 tests
+            int blockX = 4 + random.nextInt(8);
+            int blockZ = 4 + random.nextInt(8);
+            Block block = chunk.getWorld().getHighestBlockAt(chunk.getX() << 4 | blockX & 0xF, chunk.getZ() << 4 | blockZ & 0xF);
+
+            if (!ignoreBlockTest && (Material.WATER.equals(block.getType()) || Material.LAVA.equals(block.getType())))
+                continue;
+
+            return block.getLocation().add(.5, 1, .5);
+        }
+        return null;
     }
 
 
     public record Chunk(Land land, World world, int x, int z) {
         public String toString() {
             return x + "," + z + "," + world.getName();
+        }
+
+        public org.bukkit.Chunk getBukkitChunk() {
+            return world.getChunkAt(x, z);
         }
     }
 

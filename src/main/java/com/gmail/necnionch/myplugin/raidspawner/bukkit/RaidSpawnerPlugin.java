@@ -505,6 +505,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         RaidSpawnerUtil.runInMainThread(() -> {
             for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
                 if (spawner.getLand().getOnlinePlayers().isEmpty()) {
+                    logDebug(() -> "No online players | land: " + spawner.getLand().getName());
                     spawner.clearSetLose();
                 }
             }
@@ -516,6 +517,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             gameEndTimer.cancel();
         }
         gameEndTimer = getServer().getScheduler().runTaskLater(this, () -> {
+            logDebug(() -> "Raid event timeout");
             new ArrayList<>(raids.values()).forEach(RaidSpawner::clearSetLose);
         }, 20L * 60 * pluginConfig.getRaidSetting().eventTimeMinutes());
     }
@@ -635,6 +637,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
             Land land = spawner.getLand();
             if (land.getOnlinePlayers().isEmpty()) {
+                logDebug(() -> "No online players | land: " + spawner.getLand().getName());
                 spawner.clearSetLose();
             }
         }
