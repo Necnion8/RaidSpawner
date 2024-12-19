@@ -5,7 +5,6 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PlaceholderReplacer;
@@ -24,8 +23,6 @@ import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import me.angeschossen.lands.api.player.LandPlayer;
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -112,14 +109,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         getLogger().info("Active land action types: " + String.join(", ", landActionProviders.keySet()));
         getLogger().info("Active player action types: " + String.join(", ", playerActionProviders.keySet()));
         getLogger().info("Active enemy types: " + String.join(", ", enemyProviders.keySet()));
-
-        getServer().getScheduler().scheduleSyncRepeatingTask(this, () -> {
-            for (Player p : getServer().getOnlinePlayers()) {
-                if (p.hasPermission("inraidspawner.test")) {
-                    p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("has inraidspawner permission"));
-                }
-            }
-        }, 0, 20);
     }
 
     @Override
@@ -598,7 +587,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 getLogger().severe("Error condition config (in win, type " + type + "): " + e.getMessage());
                 continue;
             } catch (Throwable e) {
-                getLogger().log(Level.SEVERE, "Exception in create win condition (type " + type + ")", e);
+                getLogger().log(Level.SEVERE, "Exception in create win condition (type " + type + ")", e.getMessage());
                 continue;
             }
 
@@ -701,38 +690,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     // event
 
-    @EventHandler(priority = EventPriority.LOW)
-    public void onStartRaid(RaidSpawnStartEvent event) {
-        getLogger().info("Raid started: " + event.getLand().getName());
-
-        String groupName = pluginConfig.getRaidSetting().luckPermsGroup();
-        if (groupName != null) {
-            PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
-                for (Player player : event.getLand().getOnlinePlayers()) {
-                    perms.addPermissionGroup(player, groupName);
-                }
-            });
-        }
-    }
-
     @EventHandler(priority = EventPriority.HIGH)
     public void onEndRaid(RaidSpawnEndEvent event) {
         if (raids.values().remove(event.getRaid())) {
-            getLogger().info("Raid ended: " + event.getLand().getName() + " (" + event.getResult().name() + ")");
-
-            String groupName = pluginConfig.getRaidSetting().luckPermsGroup();
-            if (groupName != null) {
-                PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
-                    for (Player player : event.getLand().getOnlinePlayers()) {
-                        try {
-                            perms.removePermissionGroup(player, groupName);
-                        } catch (Throwable e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
-            }
-
             if (raids.isEmpty()) {
                 if (gameEndTimer != null) {
                     gameEndTimer.cancel();

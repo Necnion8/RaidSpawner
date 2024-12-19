@@ -6,6 +6,8 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PluginBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import me.angeschossen.lands.api.land.Land;
@@ -14,6 +16,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
@@ -80,11 +83,23 @@ public class RaidSpawner {
         running = true;
         rewards.rewardConditions.forEach(ConditionWrapper::start);
 
+        RaidSpawnerUtil.getLogger().info("Raid started: " + land.getName());
         Bukkit.getPluginManager().callEvent(new RaidSpawnStartEvent(this));
+
+        String groupName = setting.luckPermsGroup();
+        if (groupName != null) {
+            PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
+                for (Player player : land.getOnlinePlayers()) {
+                    perms.addPermissionGroup(player, groupName);
+                }
+            });
+        }
+
         tryNextWave();
     }
 
     public void clear(RaidSpawnEndEvent.Result result) {
+        RaidSpawnerUtil.getLogger().info("Raid ended: " + land.getName() + " (" + result.name() + ")");
         running = false;
 
         if (!RaidSpawnEndEvent.Result.CANCEL.equals(result)) {
@@ -95,21 +110,30 @@ public class RaidSpawner {
             }
         }
 
-        try {
-            rewards.rewardConditions.forEach(ConditionWrapper::clear);
-            currentEnemies.forEach(enemy -> {
-                try {
-                    enemy.remove();
-                } catch (Throwable e) {
-                    e.printStackTrace();
+        rewards.rewardConditions.forEach(ConditionWrapper::clear);
+        currentEnemies.forEach(enemy -> {
+            try {
+                enemy.remove();
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        });
+        currentEnemies.clear();
+
+        Bukkit.getPluginManager().callEvent(new RaidSpawnEndEvent(this, result));
+
+        String groupName = setting.luckPermsGroup();
+        if (groupName != null) {
+            PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
+                for (Player player : land.getOnlinePlayers()) {
+                    try {
+                        perms.removePermissionGroup(player, groupName);
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                    }
                 }
             });
-            currentEnemies.clear();
-
-        } finally {
-            Bukkit.getPluginManager().callEvent(new RaidSpawnEndEvent(this, result));
         }
-
     }
 
     public void clear() {
