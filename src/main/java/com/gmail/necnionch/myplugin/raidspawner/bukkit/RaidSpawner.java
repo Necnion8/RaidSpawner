@@ -258,6 +258,7 @@ public class RaidSpawner {
             int blockZ = 4 + random.nextInt(8);
             Block block = chunk.getWorld().getHighestBlockAt(chunk.getX() << 4 | blockX & 0xF, chunk.getZ() << 4 | blockZ & 0xF);
 
+            // TODO: 海に出ちゃうのを防ぐ
             if (!ignoreBlockTest && (Material.WATER.equals(block.getType()) || Material.LAVA.equals(block.getType())))
                 continue;
 

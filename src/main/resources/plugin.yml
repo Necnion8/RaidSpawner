@@ -1,7 +1,7 @@
 name: RaidSpawner
 version: '${version}'
 main: com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin
-api-version: '1.14'
+api-version: '1.17'
 author: Necnion8
 
 depend:

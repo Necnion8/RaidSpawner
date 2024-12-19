@@ -75,6 +75,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         conditionProviders.clear();
         landActionProviders.clear();
         playerActionProviders.clear();
+        enemyProviders.clear();
     }
 
     @Override
@@ -109,6 +110,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         getLogger().info("Active land action types: " + String.join(", ", landActionProviders.keySet()));
         getLogger().info("Active player action types: " + String.join(", ", playerActionProviders.keySet()));
         getLogger().info("Active enemy types: " + String.join(", ", enemyProviders.keySet()));
+
+        enemyProviders.values().forEach(p -> {
+            try {
+                p.load();
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     @Override
@@ -128,6 +137,16 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
             conditionProviders.clear();
             landActionProviders.clear();
+            playerActionProviders.clear();
+            
+            enemyProviders.values().forEach(p -> {
+                try {
+                    p.unload();
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            });
+            enemyProviders.clear();
 
         } finally {
             lands = null;
@@ -165,21 +184,20 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             }
 
         } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("me")) {
-            LandPlayer landPlayer = getLandAPI().getLandPlayer(((Player) sender).getUniqueId());
+            Player p = (Player) sender;
+            LandPlayer landPlayer = getLandAPI().getLandPlayer(p.getUniqueId());
             if (landPlayer == null) {
                 sender.sendMessage(ChatColor.RED + "No Land Player");
                 return true;
             }
 
-            ArrayList<? extends Land> lands = new ArrayList<>(landPlayer.getLands());
-            if (lands.isEmpty()) {
-                sender.sendMessage(ChatColor.RED + "No Land joined");
+            Land land = getLandAPI().getLandByChunk(p.getWorld(), p.getLocation().getChunk().getX(), p.getLocation().getChunk().getZ());
+            if (land == null) {
+                sender.sendMessage(ChatColor.RED + "No land current position");
                 return true;
             }
 
-            Land land = lands.get(0);
-            sender.sendMessage("Start land raid: " + land.getName() + " (total " + lands.size() + " lands)");
-
+            sender.sendMessage("Start land raid: " + land.getName());
             sender.sendMessage("result: " + startRaid(land));
 
         } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("findchunks")) {
