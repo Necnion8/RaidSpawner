@@ -15,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
+@SuppressWarnings("deprecation")
 public class ChunkViewRenderer extends MapRenderer {
     public static final Set<ChunkViewRenderer> RENDERERS = new HashSet<>();
 
@@ -141,8 +142,7 @@ public class ChunkViewRenderer extends MapRenderer {
 
                 Land land = landChunks.get(chunkX + "," + chunkZ);
                 if (land != null && !notifiedLands.contains(land)) {
-                    int x2 = x, y2 = y;
-                    canvas.drawText(x2, y2, font, colored(MapPalette.LIGHT_BROWN, land.getName()));
+                    canvas.drawText(x, y, font, colored(MapPalette.LIGHT_BROWN, land.getName()));
                     notifiedLands.add(land);
                 }
             }

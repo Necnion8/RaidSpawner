@@ -30,18 +30,18 @@ repositories {
 }
 
 dependencies {
-    implementation "org.spigotmc:spigot-api:1.14.4-R0.1-SNAPSHOT"
-    implementation "com.github.angeschossen:LandsAPI:7.10.13"
-    implementation 'io.lumine:Mythic-Dist:5.6.1'
+    compileOnly "org.spigotmc:spigot-api:1.14.4-R0.1-SNAPSHOT"
+    compileOnly "com.github.angeschossen:LandsAPI:7.10.13"
+    compileOnly 'io.lumine:Mythic-Dist:5.6.1'
     implementation "net.objecthunter:exp4j:0.4.8"
-    implementation "com.github.MilkBowl:VaultAPI:1.7"
-    implementation 'me.clip:placeholderapi:2.11.6'
+    compileOnly "com.github.MilkBowl:VaultAPI:1.7"
+    compileOnly 'me.clip:placeholderapi:2.11.6'
+    compileOnly 'net.luckperms:api:5.4'
 }
 
 tasks.named("shadowJar", ShadowJar) {
     archiveClassifier.set("")
     dependencies {
-        include(dependency("net.objecthunter:exp4j:0.4.8"))
         exclude "/META-INF/**"
     }
     relocate "net.objecthunter.exp4j", "${project.group}.libs.exp4j"
