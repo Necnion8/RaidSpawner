@@ -52,14 +52,27 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         List<?> list = parent.getList(key);
         return list != null ? list.stream()
                 .filter(obj -> obj instanceof Map)
-                .map(obj -> {
-                    MemoryConfiguration child = new MemoryConfiguration();
-                    //noinspection unchecked,rawtypes
-                    child.addDefaults(((Map) obj));
-                    return child;
-                })
+                .map(obj -> createMemoryConfigurationFromMap((Map<?, ?>) obj))
                 .collect(Collectors.toList()) : null;
     }
+
+    private static void putMapToMemoryConfiguration(MemoryConfiguration configuration, Map<?, ?> map) {
+        map.forEach((k, v) -> {
+            if (v instanceof Map) {
+                configuration.set((String) k, createMemoryConfigurationFromMap((Map<?, ?>) v));
+            } else {
+                configuration.set((String) k, v);
+            }
+        });
+    }
+
+    private static MemoryConfiguration createMemoryConfigurationFromMap(Map<?, ?> map) {
+        MemoryConfiguration nest = new MemoryConfiguration();
+        putMapToMemoryConfiguration(nest, map);
+        return nest;
+    }
+
+    //
 
     private Actions getActions(@Nullable ConfigurationSection config) {
         Actions.Item[] playerActions = Optional.ofNullable(config)
