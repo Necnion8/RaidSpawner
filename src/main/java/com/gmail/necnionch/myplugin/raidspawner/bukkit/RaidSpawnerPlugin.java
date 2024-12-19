@@ -5,8 +5,11 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PlaceholderReplacer;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PluginBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.map.ChunkViewRenderer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
@@ -21,6 +24,8 @@ import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import me.angeschossen.lands.api.player.LandPlayer;
 import me.clip.placeholderapi.PlaceholderAPI;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -33,6 +38,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -68,6 +74,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onLoad() {
+        PluginBridge.BRIDGES.clear();
         conditionProviders.clear();
         landActionProviders.clear();
         playerActionProviders.clear();
@@ -89,12 +96,30 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }
 
         hookPlaceholderAPI();
+        if (getServer().getPluginManager().isPluginEnabled("LuckPerms")) {
+            try {
+                LuckPermsBridge bridge = new LuckPermsBridge();
+                if (bridge.hook()) {
+                    PluginBridge.put(bridge);
+                }
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
 
         getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("Active condition types: " + String.join(", ", conditionProviders.keySet()));
         getLogger().info("Active land action types: " + String.join(", ", landActionProviders.keySet()));
         getLogger().info("Active player action types: " + String.join(", ", playerActionProviders.keySet()));
         getLogger().info("Active enemy types: " + String.join(", ", enemyProviders.keySet()));
+
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, () -> {
+            for (Player p : getServer().getOnlinePlayers()) {
+                if (p.hasPermission("inraidspawner.test")) {
+                    p.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent("has inraidspawner permission"));
+                }
+            }
+        }, 0, 20);
     }
 
     @Override
@@ -530,7 +555,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     public void processRaidStart() {
         clearStartConditions();
         raids.values().forEach(RaidSpawner::start);
-        getLogger().info("Raid Spawner Started");
 
         // delay 1 tick
         RaidSpawnerUtil.runInMainThread(() -> {
@@ -677,10 +701,37 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     // event
 
+    @EventHandler(priority = EventPriority.LOW)
+    public void onStartRaid(RaidSpawnStartEvent event) {
+        getLogger().info("Raid started: " + event.getLand().getName());
+
+        String groupName = pluginConfig.getRaidSetting().luckPermsGroup();
+        if (groupName != null) {
+            PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
+                for (Player player : event.getLand().getOnlinePlayers()) {
+                    perms.addPermissionGroup(player, groupName);
+                }
+            });
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onEndRaid(RaidSpawnEndEvent event) {
         if (raids.values().remove(event.getRaid())) {
             getLogger().info("Raid ended: " + event.getLand().getName() + " (" + event.getResult().name() + ")");
+
+            String groupName = pluginConfig.getRaidSetting().luckPermsGroup();
+            if (groupName != null) {
+                PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
+                    for (Player player : event.getLand().getOnlinePlayers()) {
+                        try {
+                            perms.removePermissionGroup(player, groupName);
+                        } catch (Throwable e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+            }
 
             if (raids.isEmpty()) {
                 if (gameEndTimer != null) {
@@ -694,7 +745,32 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     }
 
     @EventHandler
+    public void onJoinPlayer(PlayerJoinEvent event) {
+        String groupName = pluginConfig.getRaidSetting().luckPermsGroup();
+        if (groupName != null && RaidSpawnerUtil.isRaidPlayer(event.getPlayer())) {
+            PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
+                try {
+                    perms.addPermissionGroup(event.getPlayer(), groupName);
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+    @EventHandler
     public void onQuitPlayer(PlayerQuitEvent event) {
+        String groupName = pluginConfig.getRaidSetting().luckPermsGroup();
+        if (groupName != null) {
+            PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
+                try {
+                    perms.removePermissionGroup(event.getPlayer(), groupName);
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
             Land land = spawner.getLand();
             if (land.getOnlinePlayers().isEmpty()) {

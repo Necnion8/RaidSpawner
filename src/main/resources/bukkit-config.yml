@@ -4,7 +4,7 @@ event-start:
   # いずれかの条件を満たすと実行
   conditions:
     - type: real-clock
-      timezone: asia/tokyo  # or local
+      timezone: Asia/Tokyo  # or local
       time-hours: 22
       time-minutes: 30
 
