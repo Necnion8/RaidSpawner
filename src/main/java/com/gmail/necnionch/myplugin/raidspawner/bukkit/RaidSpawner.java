@@ -10,12 +10,15 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PluginBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
@@ -112,6 +115,9 @@ public class RaidSpawner {
 
         rewards.rewardConditions.forEach(ConditionWrapper::clear);
         currentEnemies.forEach(enemy -> {
+            Optional.ofNullable(enemy.getEntity())
+                    .map(Entity::getUniqueId)
+                    .ifPresent(RaidSpawner::unsetKeepChunkWithEntity);
             try {
                 enemy.remove();
             } catch (Throwable e) {
@@ -151,6 +157,20 @@ public class RaidSpawner {
     }
 
 
+    public void onDeathEntity() {
+        currentEnemies.stream()
+                .filter(e -> !e.isAlive())
+                .map(Enemy::getEntity)
+                .filter(Objects::nonNull)
+                .map(Entity::getUniqueId)
+                .forEach(RaidSpawner::unsetKeepChunkWithEntity);
+
+        if (currentEnemies.stream().noneMatch(Enemy::isAlive)) {
+            RaidSpawnerUtil.d(() -> " -> no alive, to next");
+            tryNextWave();
+        }
+    }
+
     public void tryNextWave() {
         if (!running)
             return;
@@ -169,6 +189,13 @@ public class RaidSpawner {
     }
 
     private void doWave() {
+        currentEnemies.stream()
+                .filter(e -> !e.isAlive())
+                .map(Enemy::getEntity)
+                .filter(Objects::nonNull)
+                .map(Entity::getUniqueId)
+                .forEach(RaidSpawner::unsetKeepChunkWithEntity);
+
         currentEnemies.removeIf(e -> !e.isAlive());  // keep alive
         Random random = new Random();
 
@@ -239,8 +266,10 @@ public class RaidSpawner {
 
                     if (location != null) {
                         final Location pos = location;
-                        if (enemy.spawn(this, world, pos)) {
+                        Entity spawned = enemy.spawn(this, world, pos);
+                        if (spawned != null) {
                             RaidSpawnerUtil.d(() -> "spawn " + enemy.getProvider().getSource() + " in " + world.getName() + " " + pos.getBlockX() + ", " + pos.getBlockY() + ", " + pos.getBlockZ());
+                            setKeepChunkWithEntity(spawned.getUniqueId());
                         } else {
                             RaidSpawnerUtil.d(() -> "cannot spawn");
                             it.remove();
@@ -266,6 +295,42 @@ public class RaidSpawner {
         }
         return null;
     }
+
+
+    private static void setKeepChunkWithEntity(UUID entityId) {
+        spawnedEntities.add(entityId);
+    }
+
+    public static void unsetKeepChunkWithEntity(UUID entityId) {
+        if (!keepChunksByEntities.containsValue(entityId))
+            return;
+
+        for (Iterator<Map.Entry<KeepChunk, Collection<UUID>>> it = keepChunksByEntities.asMap().entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<KeepChunk, Collection<UUID>> e = it.next();
+            KeepChunk key = e.getKey();
+            Collection<UUID> entities = e.getValue();
+            if (entities.contains(entityId)) {
+                if (entities.size() == 1) {
+                    it.remove();
+                    System.out.println("removeChunkTicket : " + key + " | " + key.world.removePluginChunkTicket(key.x, key.z, RaidSpawnerUtil.getPlugin()));
+                } else {
+                    entities.remove(entityId);
+                }
+            }
+        }
+    }
+
+    public static final Set<UUID> spawnedEntities = new HashSet<>();
+    public static final Multimap<KeepChunk, UUID> keepChunksByEntities = LinkedHashMultimap.create();
+
+
+
+    public record KeepChunk(World world, int x, int z) {
+    }
+
+
+
+
 
 
     public record Chunk(Land land, World world, int x, int z) {

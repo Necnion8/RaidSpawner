@@ -37,7 +37,7 @@ public class TestEnemy implements Enemy {
     }
 
     @Override
-    public boolean spawn(RaidSpawner spawner, World world, Location location) {
+    public @Nullable Entity spawn(RaidSpawner spawner, World world, Location location) {
         remove();
         aliveEnemies.add(this);
         entity = world.spawn(location, Zombie.class, z -> {
@@ -52,12 +52,12 @@ public class TestEnemy implements Enemy {
                 inv.setHelmetDropChance(0);
             });
 
-            world.getPlayers().stream()
+            spawner.getLand().getOnlinePlayers().stream()
                     .min(Comparator.comparingDouble(p -> p.getLocation().distance(location)))
                     .ifPresent(z::setTarget);
 
         });
-        return true;
+        return entity;
     }
 
     @Override

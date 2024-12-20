@@ -23,24 +23,26 @@ import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import me.angeschossen.lands.api.player.LandPlayer;
 import me.clip.placeholderapi.PlaceholderAPI;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.world.EntitiesUnloadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapView;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
@@ -50,6 +52,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
@@ -158,6 +161,18 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         // TODO: impl command
         if (args.length == 0) {
+//            sender.sendMessage(ChatColor.GRAY + "Loaded chunks: " + String.join(", ", Arrays.stream(getServer().getWorld("world").getLoadedChunks())
+//                    .map(c -> c.getX() + "," + c.getZ()).collect(Collectors.toSet())));
+            for (World w : Bukkit.getWorlds()) {
+                sender.sendMessage(ChatColor.AQUA + "=== Ticket Chunks: " + w.getName() + " ===");
+                for (Map.Entry<Plugin, Collection<Chunk>> e : w.getPluginChunkTickets().entrySet()) {
+                    Plugin owner = e.getKey();
+                    Collection<Chunk> chunks = e.getValue();
+                    sender.sendMessage(ChatColor.WHITE + owner.getName() + ": " + ChatColor.GRAY + chunks.stream().map(c -> c.getX() + "," + c.getZ()).collect(Collectors.joining(", ")));
+                }
+            }
+            sender.sendMessage();
+
             sender.sendMessage("currentRaids: " + raids.size());
             if (!raids.isEmpty()) {
                 sender.sendMessage(ChatColor.AQUA + "=== Raids ===");
@@ -758,9 +773,10 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onDeathEntity(EntityDeathEvent event) {
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+            spawner.onDeathEntity();
             if (spawner.currentEnemies().stream().noneMatch(Enemy::isAlive)) {
                 logDebug(() -> " -> no alive, to next");
                 spawner.tryNextWave();
@@ -768,6 +784,37 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }
 
     }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDamageEntity(EntityDamageEvent event) {
+        if (raids.isEmpty())
+            return;
+
+        if (event.getEntity() instanceof LivingEntity && ((LivingEntity) event.getEntity()).getHealth() - event.getFinalDamage() <= 0) {
+            for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+                spawner.onDeathEntity();
+                if (spawner.currentEnemies().stream().noneMatch(Enemy::isAlive)) {
+                    logDebug(() -> " -> no alive, to next");
+                    spawner.tryNextWave();
+                }
+            }
+        }
+
+    }
+
+    @EventHandler
+    public void onUnloadEntities(EntitiesUnloadEvent event) {
+        RaidSpawner.KeepChunk key = new RaidSpawner.KeepChunk(event.getWorld(), event.getChunk().getX(), event.getChunk().getZ());
+        for (Entity entity : event.getEntities()) {
+            if (RaidSpawner.spawnedEntities.contains(entity.getUniqueId())) {
+                // keep
+                System.out.println("addChunkTicket : " + key + " | " + event.getChunk().addPluginChunkTicket(RaidSpawnerUtil.getPlugin()));
+                RaidSpawner.unsetKeepChunkWithEntity(entity.getUniqueId());  // cleanup olds
+                RaidSpawner.keepChunksByEntities.put(key, entity.getUniqueId());
+            }
+        }
+    }
+
 
 
 }

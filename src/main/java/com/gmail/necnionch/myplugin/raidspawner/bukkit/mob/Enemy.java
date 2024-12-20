@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public interface Enemy {
 
-    boolean spawn(RaidSpawner spawner, World world, Location location);
+    @Nullable Entity spawn(RaidSpawner spawner, World world, Location location);
 
     boolean isAlive();
 
