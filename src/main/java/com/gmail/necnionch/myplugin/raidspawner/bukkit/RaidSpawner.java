@@ -20,12 +20,16 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.world.EntitiesUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
 public class RaidSpawner {
+
+    public static final Set<UUID> spawnedEntities = new HashSet<>();
+    public static final Multimap<KeepChunk, UUID> keepChunksByEntities = LinkedHashMultimap.create();
 
     private final RaidSpawnerPlugin plugin = JavaPlugin.getPlugin(RaidSpawnerPlugin.class);
     private final Land land;
@@ -301,7 +305,7 @@ public class RaidSpawner {
         spawnedEntities.add(entityId);
     }
 
-    public static void unsetKeepChunkWithEntity(UUID entityId) {
+    private static void unsetKeepChunkWithEntity(UUID entityId) {
         if (!keepChunksByEntities.containsValue(entityId))
             return;
 
@@ -312,7 +316,8 @@ public class RaidSpawner {
             if (entities.contains(entityId)) {
                 if (entities.size() == 1) {
                     it.remove();
-                    System.out.println("removeChunkTicket : " + key + " | " + key.world.removePluginChunkTicket(key.x, key.z, RaidSpawnerUtil.getPlugin()));
+                    boolean removed = key.world.removePluginChunkTicket(key.x, key.z, RaidSpawnerUtil.getPlugin());
+                    RaidSpawnerUtil.d(() -> "removeChunkTicket : " + key + " | " + removed);
                 } else {
                     entities.remove(entityId);
                 }
@@ -320,18 +325,22 @@ public class RaidSpawner {
         }
     }
 
-    public static final Set<UUID> spawnedEntities = new HashSet<>();
-    public static final Multimap<KeepChunk, UUID> keepChunksByEntities = LinkedHashMultimap.create();
-
+    public static void onEntitiesUnloadEvent(EntitiesUnloadEvent event) {
+        KeepChunk key = new KeepChunk(event.getWorld(), event.getChunk().getX(), event.getChunk().getZ());
+        for (Entity entity : event.getEntities()) {
+            if (spawnedEntities.contains(entity.getUniqueId())) {
+                // keep
+                boolean added = event.getChunk().addPluginChunkTicket(RaidSpawnerUtil.getPlugin());
+                RaidSpawnerUtil.d(() -> "addChunkTicket : " + key + " | " + added);
+                unsetKeepChunkWithEntity(entity.getUniqueId());  // cleanup olds
+                keepChunksByEntities.put(key, entity.getUniqueId());
+            }
+        }
+    }
 
 
     public record KeepChunk(World world, int x, int z) {
     }
-
-
-
-
-
 
     public record Chunk(Land land, World world, int x, int z) {
         public String toString() {

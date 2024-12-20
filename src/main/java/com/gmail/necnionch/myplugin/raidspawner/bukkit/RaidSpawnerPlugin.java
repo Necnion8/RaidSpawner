@@ -27,7 +27,6 @@ import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -154,6 +153,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         } finally {
             lands = null;
             timer.purge();
+            RaidSpawner.spawnedEntities.clear();
+            RaidSpawner.keepChunksByEntities.clear();
         }
     }
 
@@ -777,10 +778,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     public void onDeathEntity(EntityDeathEvent event) {
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
             spawner.onDeathEntity();
-            if (spawner.currentEnemies().stream().noneMatch(Enemy::isAlive)) {
-                logDebug(() -> " -> no alive, to next");
-                spawner.tryNextWave();
-            }
         }
 
     }
@@ -793,10 +790,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         if (event.getEntity() instanceof LivingEntity && ((LivingEntity) event.getEntity()).getHealth() - event.getFinalDamage() <= 0) {
             for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
                 spawner.onDeathEntity();
-                if (spawner.currentEnemies().stream().noneMatch(Enemy::isAlive)) {
-                    logDebug(() -> " -> no alive, to next");
-                    spawner.tryNextWave();
-                }
             }
         }
 
@@ -804,17 +797,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onUnloadEntities(EntitiesUnloadEvent event) {
-        RaidSpawner.KeepChunk key = new RaidSpawner.KeepChunk(event.getWorld(), event.getChunk().getX(), event.getChunk().getZ());
-        for (Entity entity : event.getEntities()) {
-            if (RaidSpawner.spawnedEntities.contains(entity.getUniqueId())) {
-                // keep
-                System.out.println("addChunkTicket : " + key + " | " + event.getChunk().addPluginChunkTicket(RaidSpawnerUtil.getPlugin()));
-                RaidSpawner.unsetKeepChunkWithEntity(entity.getUniqueId());  // cleanup olds
-                RaidSpawner.keepChunksByEntities.put(key, entity.getUniqueId());
-            }
-        }
+        RaidSpawner.onEntitiesUnloadEvent(event);
     }
-
-
 
 }
