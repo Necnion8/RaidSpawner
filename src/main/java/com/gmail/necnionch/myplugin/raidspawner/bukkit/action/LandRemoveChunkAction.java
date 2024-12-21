@@ -5,23 +5,26 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
+import me.angeschossen.lands.api.player.LandPlayer;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 public class LandRemoveChunkAction implements LandAction {
 
     private final Provider provider;
     private final int chunkCount;
+    private final boolean keepLand;
 
-    public LandRemoveChunkAction(Provider provider, int chunkCount) {
+    public LandRemoveChunkAction(Provider provider, int chunkCount, boolean keepLand) {
         this.provider = provider;
         this.chunkCount = chunkCount;
+        this.keepLand = keepLand;
     }
 
     @Override
@@ -34,20 +37,54 @@ public class LandRemoveChunkAction implements LandAction {
         }
 
         List<? extends ChunkCoordinate> chunks = new ArrayList<>(container.getChunks());
-        if (chunks.size() <= this.chunkCount) {
+        if (chunks.isEmpty() || chunkCount <= 0)
+            return false;
+
+        RaidSpawnerUtil.d(() -> "Removing " + Math.min(chunks.size(), chunkCount) + " land chunks: " + land.getName());
+        Set<CompletableFuture<?>> tasks = new HashSet<>();
+        if (chunks.size() <= chunkCount) {
             // remove all
             for (ChunkCoordinate chunk : chunks) {
-                land.unclaimChunk(world, chunk.getX(), chunk.getZ(), null);
+                tasks.add(queueUnclaimChunk(land, world, chunk));
             }
         } else {
             // random
             Random random = new Random();
-            for (int i = 0; i < this.chunkCount; i++) {
+            for (int i = 0; i < chunkCount; i++) {
                 ChunkCoordinate chunk = chunks.remove(random.nextInt(chunks.size()));
-                land.unclaimChunk(world, chunk.getX(), chunk.getZ(), null);
+                tasks.add(queueUnclaimChunk(land, world, chunk));
             }
         }
+
+        if (keepLand)
+            return true;
+
+        CompletableFuture.allOf(tasks.toArray(CompletableFuture[]::new)).thenAccept(v -> {
+            // remove land
+            if (land.getContainers().stream().mapToInt(c -> c.getChunks().size()).sum() <= 0) {
+                RaidSpawnerUtil.d(() -> "Deleting land: " + land.getName());
+                land.delete((LandPlayer) null).whenComplete((result, error) -> {
+                    if (result) {
+                        RaidSpawnerUtil.getLogger().info("Deleted land (by unclaim chunks): " + land.getName());
+                    } else if (error != null) {
+                        RaidSpawnerUtil.getLogger().log(Level.WARNING, "Failed to delete land: " + land.getName(), error);
+                    } else {
+                        RaidSpawnerUtil.getLogger().warning("Failed to delete land: " + land.getName());
+                    }
+                });
+            }
+        });
         return true;
+    }
+
+    private CompletableFuture<Void> queueUnclaimChunk(Land land, World world, ChunkCoordinate chunk) {
+        return land.unclaimChunk(world, chunk.getX(), chunk.getZ(), null).thenAccept(c -> {
+            if (c != null) {
+                RaidSpawnerUtil.getLogger().info("Unclaim chunk: land: " + land.getName() + ", world: " + world.getName() + ", chunk: " + chunk.getX() + "," + chunk.getZ());
+            } else {
+                RaidSpawnerUtil.d(() -> "Cancelled unclaim chunk: " + land.getName() + ", world: " + world.getName() + ", chunk: " + chunk.getX() + "," + chunk.getZ());
+            }
+        });
     }
 
     @NotNull
@@ -65,7 +102,12 @@ public class LandRemoveChunkAction implements LandAction {
 
         @Override
         public LandRemoveChunkAction create(Object value, @Nullable ConfigurationSection config) throws ConfigurationError {
-            return new LandRemoveChunkAction(this, parseInt(value));
+            if (config != null) {
+                if (!config.contains("value"))
+                    throw new ConfigurationError("Require 'value' key with int value");
+                return new LandRemoveChunkAction(this, parseInt("value"), config.getBoolean("keep-land"));
+            }
+            return new LandRemoveChunkAction(this, parseInt(value), false);
         }
 
     }
