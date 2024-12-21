@@ -261,25 +261,25 @@ public class RaidSpawner {
         for (Iterator<Enemy> it = currentEnemies.iterator(); it.hasNext(); ) {
             Enemy enemy = it.next();
             if (!enemy.isAlive()) {
-                int searchLimit = 3;
+                int searchLimit = 8;
                 Location location;
 
                 for (int i = 0; i < searchLimit; i++) {
                     Chunk chunk = spawnChunks.get(random.nextInt(spawnChunks.size()));
                     location = selectRandomSpawnLocationByChunk(chunk.getBukkitChunk(), random, searchLimit <= i + 1);
+                    if (location == null)
+                        continue;
 
-                    if (location != null) {
-                        final Location pos = location;
-                        Entity spawned = enemy.spawn(this, world, pos);
-                        if (spawned != null) {
-                            RaidSpawnerUtil.d(() -> "spawn " + enemy.getProvider().getSource() + " in " + world.getName() + " " + pos.getBlockX() + ", " + pos.getBlockY() + ", " + pos.getBlockZ());
-                            setKeepChunkWithEntity(spawned.getUniqueId());
-                        } else {
-                            RaidSpawnerUtil.d(() -> "cannot spawn");
-                            it.remove();
-                        }
-                        break;
+                    final Location pos = location;
+                    Entity spawned = enemy.spawn(this, world, pos);
+                    if (spawned != null) {
+                        RaidSpawnerUtil.d(() -> "spawn " + enemy.getProvider().getSource() + " in " + world.getName() + " " + pos.getBlockX() + ", " + pos.getBlockY() + ", " + pos.getBlockZ());
+                        setKeepChunkWithEntity(spawned.getUniqueId());
+                    } else {
+                        RaidSpawnerUtil.d(() -> "cannot spawn");
+                        it.remove();
                     }
+                    break;
                 }
             }
         }
@@ -291,7 +291,6 @@ public class RaidSpawner {
             int blockZ = 4 + random.nextInt(8);
             Block block = chunk.getWorld().getHighestBlockAt(chunk.getX() << 4 | blockX & 0xF, chunk.getZ() << 4 | blockZ & 0xF);
 
-            // TODO: 海に出ちゃうのを防ぐ
             if (!ignoreBlockTest && (Material.WATER.equals(block.getType()) || Material.LAVA.equals(block.getType())))
                 continue;
 
