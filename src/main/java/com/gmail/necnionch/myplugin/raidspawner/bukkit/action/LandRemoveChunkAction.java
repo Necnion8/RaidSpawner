@@ -13,7 +13,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class LandRemoveChunkAction implements LandAction {
 
@@ -49,9 +52,21 @@ public class LandRemoveChunkAction implements LandAction {
             }
         } else {
             // random
+            Map<String, ? extends ChunkCoordinate> chunksKey = chunks.stream().collect(Collectors.toMap(c -> c.getX() + "," + c.getZ(), c -> c));
+            Function<ChunkCoordinate, Integer> priorityChunkFaces = chunk -> Stream.of(
+                    chunksKey.containsKey(chunk.getX() + 1 + "," + chunk.getZ()),
+                    chunksKey.containsKey(chunk.getX() - 1 + "," + chunk.getZ()),
+                    chunksKey.containsKey(chunk.getX() + "," + (chunk.getZ() + 1)),
+                    chunksKey.containsKey(chunk.getX() + "," + (chunk.getZ() - 1))
+            ).mapToInt(v -> v ? 1 : 0).sum();
+
             Random random = new Random();
+            Iterator<? extends ChunkCoordinate> chunkIterator = chunks.stream()
+                    .sorted(Comparator.comparingDouble(c -> priorityChunkFaces.apply(c) + random.nextFloat() * 4))
+                    .iterator();
+
             for (int i = 0; i < chunkCount; i++) {
-                ChunkCoordinate chunk = chunks.remove(random.nextInt(chunks.size()));
+                ChunkCoordinate chunk = chunkIterator.next();
                 tasks.add(queueUnclaimChunk(land, world, chunk));
             }
         }

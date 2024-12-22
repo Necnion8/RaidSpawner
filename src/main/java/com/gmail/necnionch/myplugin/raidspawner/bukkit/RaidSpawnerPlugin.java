@@ -224,10 +224,29 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         } else if (sender instanceof Player && args.length == 2 && args[0].equalsIgnoreCase("testp")) {
             Player p = (Player) sender;
-            Land land = getLandAPI().getLandPlayer(p.getUniqueId()).getLands().iterator().next();
+            LandPlayer landPlayer = getLandAPI().getLandPlayer(p.getUniqueId());
+            if (landPlayer == null) {
+                sender.sendMessage(ChatColor.RED + "No Land Player");
+                return true;
+            }
+
+            Land land = getLandAPI().getLandByChunk(p.getWorld(), p.getLocation().getChunk().getX(), p.getLocation().getChunk().getZ());
+            if (land == null) {
+                sender.sendMessage(ChatColor.RED + "No land current position");
+                return true;
+            }
 
             RaidSpawner spawner = createRaidSpawner(land, p.getWorld(), Collections.emptyList());
-            sendReward(spawner, "win".equalsIgnoreCase(args[1]) ? RaidSpawnEndEvent.Result.WIN : RaidSpawnEndEvent.Result.LOSE);
+            Action action;
+            try {
+                action = createLandAction("remove-chunk", 1, null);
+            } catch (ActionProvider.ConfigurationError e) {
+                throw new RuntimeException(e);
+            }
+
+            ((LandAction) action).doAction(spawner, land);
+            RaidSpawnerUtil.runInMainThread(() -> ChunkViewRenderer.RENDERERS.forEach(ChunkViewRenderer::updateLandsList));
+
         }
 
         return true;
