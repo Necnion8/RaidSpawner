@@ -163,6 +163,17 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         return getActions(config.getConfigurationSection("event-lose-rewards.actions"));
     }
 
+    public boolean isNonMembersKick() {
+        return config.getBoolean("raid.non-members-kick.enable", true);
+    }
+
+    public String getNonMembersKickMessage() {
+        return Optional.ofNullable(config.getString("raid.non-members-kick.kick-message"))
+                .orElse("&c襲撃イベントが発生しているため、現在は参加できません。");
+    }
+
+    //
+
     public record ConditionItem(ConfigurationSection config, Actions actions) {
     }
 

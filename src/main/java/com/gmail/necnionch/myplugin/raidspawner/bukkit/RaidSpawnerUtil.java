@@ -13,6 +13,8 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class RaidSpawnerUtil {
+    public static final String NON_MEMBERS_KICK_PERMISSION = "raidspawner.bypass.non-members-kick";
+
     private static @Nullable Logger log;
     private static @Nullable RaidSpawnerPlugin plugin;
 

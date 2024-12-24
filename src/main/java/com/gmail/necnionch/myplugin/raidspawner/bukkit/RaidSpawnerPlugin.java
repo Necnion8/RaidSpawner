@@ -35,6 +35,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.EntitiesUnloadEvent;
 import org.bukkit.inventory.ItemStack;
@@ -600,6 +601,16 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         // delay 1 tick
         RaidSpawnerUtil.runInMainThread(() -> {
+            // 未所属キック
+            if (pluginConfig.isNonMembersKick()) {
+                for (Player p : getServer().getOnlinePlayers()) {
+                    if (!p.hasPermission(RaidSpawnerUtil.NON_MEMBERS_KICK_PERMISSION) && getLandAPI().getLandPlayer(p.getUniqueId()) == null) {
+                        p.kickPlayer(ChatColor.translateAlternateColorCodes('&', pluginConfig.getNonMembersKickMessage()));
+                    }
+                }
+            }
+
+            // online players
             for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
                 if (spawner.getLand().getOnlinePlayers().isEmpty()) {
                     logDebug(() -> "No online players | land: " + spawner.getLand().getName());
@@ -754,6 +765,17 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 getLogger().info("Auto start conditions restarting");
                 startStartConditions();
             }
+        }
+    }
+
+    @EventHandler
+    public void onLoginPlayer(PlayerLoginEvent event) {
+        if (!isRunningRaid() || !pluginConfig.isNonMembersKick())
+            return;
+
+        // 未所属キック
+        if (!event.getPlayer().hasPermission(RaidSpawnerUtil.NON_MEMBERS_KICK_PERMISSION) && getLandAPI().getLandPlayer(event.getPlayer().getUniqueId()) == null) {
+            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, ChatColor.translateAlternateColorCodes('&', pluginConfig.getNonMembersKickMessage()));
         }
     }
 

@@ -10,6 +10,10 @@ event-start:
 
 # 襲撃設定
 raid:
+  # Land未所属プレイヤーを退出または参加させない設定
+  non-members-kick:
+    enable: true
+    kick-message: "&c襲撃イベントが発生しているため、現在は参加できません。"
   # ゲーム時間
   event-time-minutes: 30
   # ウェーブ数

@@ -15,3 +15,12 @@ softdepend:
 
 commands:
   raidspawner: {}
+
+permissions:
+  raidspawner.admin:
+    default: op
+    children:
+      - raidspawner.bypass.non-members-kick
+
+  raidspawner.bypass.non-members-kick:
+    description: "未所属プレイヤーが襲撃イベント中に参加できるようにする権限"
