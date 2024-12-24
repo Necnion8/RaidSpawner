@@ -1,7 +1,7 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.action;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;

@@ -1,7 +1,7 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.events;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.Condition;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;

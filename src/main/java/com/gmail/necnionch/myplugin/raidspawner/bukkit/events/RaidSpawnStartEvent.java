@@ -1,6 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.events;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;

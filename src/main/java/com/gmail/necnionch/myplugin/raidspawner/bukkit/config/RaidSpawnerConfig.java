@@ -1,6 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.config;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.common.BukkitConfigDriver;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;

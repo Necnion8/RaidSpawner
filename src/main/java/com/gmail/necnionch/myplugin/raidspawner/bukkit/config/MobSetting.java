@@ -1,7 +1,7 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.config;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.Nullable;
 

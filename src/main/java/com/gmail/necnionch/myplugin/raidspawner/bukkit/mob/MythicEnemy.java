@@ -1,8 +1,8 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.mob;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import io.lumine.mythic.api.MythicProvider;
 import io.lumine.mythic.api.mobs.MobManager;
 import io.lumine.mythic.api.mobs.MythicMob;

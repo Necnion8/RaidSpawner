@@ -1,5 +1,7 @@
-package com.gmail.necnionch.myplugin.raidspawner.bukkit;
+package com.gmail.necnionch.myplugin.raidspawner.bukkit.raid;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;

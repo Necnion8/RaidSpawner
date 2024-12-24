@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;

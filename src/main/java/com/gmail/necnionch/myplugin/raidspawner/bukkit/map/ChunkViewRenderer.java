@@ -1,8 +1,8 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.map;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;

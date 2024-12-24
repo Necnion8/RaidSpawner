@@ -1,6 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.mob;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawner;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
