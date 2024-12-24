@@ -14,6 +14,8 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
@@ -615,7 +617,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
                 if (spawner.getLand().getOnlinePlayers().isEmpty()) {
                     logDebug(() -> "No online players | land: " + spawner.getLand().getName());
-                    spawner.clearSetLose();
+                    spawner.clearSetLose(RaidEndReason.NO_PLAYERS);
                 }
             }
 
@@ -627,7 +629,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }
         gameEndTimer = getServer().getScheduler().runTaskLater(this, () -> {
             logDebug(() -> "Raid event timeout");
-            new ArrayList<>(raids.values()).forEach(RaidSpawner::clearSetLose);
+            new ArrayList<>(raids.values()).forEach(s -> s.clearSetLose(RaidEndReason.TIMEOUT));
         }, 20L * 60 * pluginConfig.getRaidSetting().eventTimeMinutes());
     }
 
@@ -703,11 +705,11 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return null;
     }
 
-    public void sendReward(RaidSpawner spawner, RaidSpawnEndEvent.Result result) {
+    public @Nullable Map<Class<Action>, Boolean> sendReward(RaidSpawner spawner, RaidEndResult result) {
         RaidSpawner.Rewards rewards = spawner.getRewards();
         List<Action> actions = null;
 
-        logDebug(() -> "on sendReward | land: " + spawner.getLand().getName());
+        logDebug(() -> "on sendReward | " + result.name() + " | land: " + spawner.getLand().getName());
         switch (result) {
             case LOSE -> {
                 logDebug(() -> "  result: lose");
@@ -729,19 +731,23 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 }
             }
             default -> {
-                return;
+                return null;
             }
         }
 
+        Map<Class<Action>, Boolean> rewardResults = new HashMap<>();
         for (Action action : actions) {
             logDebug(() -> "reward: " + action.getProvider().getType() + " (" + action.getClass().getSimpleName() + ")");
+            boolean rewardResult;
             if (action instanceof LandAction) {
                 try {
-                    ((LandAction) action).doAction(spawner, spawner.getLand());
+                    rewardResult = ((LandAction) action).doAction(spawner, spawner.getLand());
                 } catch (Throwable e) {
                     e.printStackTrace();
+                    continue;
                 }
             } else if (action instanceof PlayerAction) {
+                rewardResult = true;
                 for (Player player : spawner.getLand().getOnlinePlayers()) {
                     try {
                         ((PlayerAction) action).doAction(spawner, player);
@@ -749,8 +755,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                         e.printStackTrace();
                     }
                 }
+            } else {
+                continue;
             }
+            //noinspection unchecked
+            rewardResults.put((Class<Action>) action.getClass(), rewardResult);
         }
+
+        return rewardResults;
     }
 
     // event
@@ -811,7 +823,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             Land land = spawner.getLand();
             if (land.getOnlinePlayers().isEmpty()) {
                 logDebug(() -> "No online players | land: " + spawner.getLand().getName());
-                spawner.clearSetLose();
+                spawner.clearSetLose(RaidEndReason.NO_PLAYERS);
             }
         }
     }

@@ -40,9 +40,11 @@ public class RaidSpawner {
     private final List<Chunk> spawnChunks;
     private final Rewards rewards;
     private boolean running;
-    private boolean lose;
     private int waves;
     private final List<Enemy> currentEnemies = new ArrayList<>();
+    private @Nullable RaidEndResult endResult;
+    private @Nullable RaidEndReason endReason;
+    private @Nullable Map<Class<Action>, Boolean> endActionResults;
 
     public RaidSpawner(Land land, RaidSetting setting, World world, List<Chunk> spawnChunks, Rewards rewards) {
         this.land = land;
@@ -73,7 +75,7 @@ public class RaidSpawner {
     }
 
     public boolean isLose() {
-        return lose;
+        return RaidEndResult.LOSE.equals(endResult);
     }
 
     public int getMaxWaves() {
@@ -86,6 +88,21 @@ public class RaidSpawner {
 
     public List<Enemy> currentEnemies() {
         return currentEnemies;
+    }
+
+    @Nullable
+    public RaidEndResult getEndResult() {
+        return endResult;
+    }
+
+    @Nullable
+    public RaidEndReason getEndReason() {
+        return endReason;
+    }
+
+    @Nullable
+    public Map<Class<Action>, Boolean> getEndActionResults() {
+        return endActionResults;
     }
 
     public void start() {
@@ -107,17 +124,17 @@ public class RaidSpawner {
         tryNextWave();
     }
 
-    public void clear(RaidSpawnEndEvent.Result result) {
-        RaidSpawnerUtil.getLogger().info("Raid ended: " + land.getName() + " (" + result.name() + ")");
+    public void clear(RaidEndResult result, @Nullable RaidEndReason reason) {
+        RaidSpawnerUtil.getLogger().info("Raid ended: " + land.getName() + " (" + result.name() + ", " + Optional.ofNullable(reason).map(RaidEndReason::getType).orElse("none") + ")");
         running = false;
 
-        if (!RaidSpawnEndEvent.Result.CANCEL.equals(result)) {
-            try {
-                plugin.sendReward(this, result);
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
+        Map<Class<Action>, Boolean> actionResults = null;
+        try {
+            actionResults = plugin.sendReward(this, result);
+        } catch (Throwable e) {
+            e.printStackTrace();
         }
+        this.endActionResults = actionResults;
 
         rewards.rewardConditions.forEach(ConditionWrapper::clear);
         currentEnemies.forEach(enemy -> {
@@ -132,7 +149,7 @@ public class RaidSpawner {
         });
         currentEnemies.clear();
 
-        Bukkit.getPluginManager().callEvent(new RaidSpawnEndEvent(this, result));
+        Bukkit.getPluginManager().callEvent(new RaidSpawnEndEvent(this, result, reason));
 
         String groupName = setting.luckPermsGroup();
         if (groupName != null) {
@@ -149,17 +166,19 @@ public class RaidSpawner {
     }
 
     public void clear() {
-        clear(RaidSpawnEndEvent.Result.CANCEL);
+        clear(RaidEndResult.CANCEL, null);
     }
 
-    public void clearSetLose() {
-        lose = true;
-        clear(RaidSpawnEndEvent.Result.LOSE);
+    public void clearSetLose(@Nullable RaidEndReason reason) {
+        this.endResult = RaidEndResult.LOSE;
+        this.endReason = reason;
+        clear(RaidEndResult.LOSE, reason);
     }
 
-    public void clearSetWin() {
-        lose = false;
-        clear(RaidSpawnEndEvent.Result.WIN);
+    public void clearSetWin(@Nullable RaidEndReason reason) {
+        this.endResult = RaidEndResult.WIN;
+        this.endReason = reason;
+        clear(RaidEndResult.WIN, reason);
     }
 
 
@@ -189,7 +208,7 @@ public class RaidSpawner {
             doWave();
 
         } else {
-            clearSetWin();
+            clearSetWin(RaidEndReason.FULL_WAVES);
         }
 
     }
