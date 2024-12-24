@@ -190,7 +190,7 @@ public class RaidSpawner {
                 .map(Entity::getUniqueId)
                 .forEach(RaidSpawner::unsetKeepChunkWithEntity);
 
-        if (currentEnemies.stream().noneMatch(Enemy::isAlive)) {
+        if (running && currentEnemies.stream().noneMatch(Enemy::isAlive)) {
             RaidSpawnerUtil.d(() -> " -> no alive, to next");
             tryNextWave();
         }

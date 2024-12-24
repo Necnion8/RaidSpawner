@@ -49,6 +49,12 @@ public class RaidSpawnerUtil {
         return Collections.unmodifiableCollection(getPlugin().getCurrentRaids().values());
     }
 
+    public static List<RaidSpawner> getRunningRaids() {
+        return getPlugin().getCurrentRaids().values().stream()
+                .filter(RaidSpawner::isRunning)
+                .toList();
+    }
+
     public static boolean isRaidPlayer(UUID playerId) {
         Set<Land> raids = getRaids().stream().map(RaidSpawner::getLand).collect(Collectors.toSet());
         return Optional.ofNullable(getPlugin().getLandAPI().getLandPlayer(playerId))

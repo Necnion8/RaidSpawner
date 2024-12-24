@@ -5,6 +5,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsAllEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PlaceholderReplacer;
@@ -182,7 +183,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             if (!raids.isEmpty()) {
                 sender.sendMessage(ChatColor.AQUA + "=== Raids ===");
                 for (RaidSpawner spawner : raids.values()) {
-                    sender.sendMessage(ChatColor.GOLD + "- raid: " + spawner.getLand().getName() + " land");
+                    sender.sendMessage(ChatColor.GOLD + "- raid: " + spawner.getLand().getName() + " land" + " | running:" + spawner.isRunning() + ", " + Optional.ofNullable(spawner.getEndResult()).map(Enum::name).orElse("N/A"));
                     sender.sendMessage("  wave: " + spawner.getWave() + "/" + spawner.getMaxWaves());
                     List<Enemy> enemies = spawner.currentEnemies();
                     sender.sendMessage("  alive: " + enemies.stream().filter(Enemy::isAlive).count() + "/" + enemies.size());
@@ -532,14 +533,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
      * いずれかの襲撃イベントを実行している場合は true を返す
      */
     public boolean isRunningRaid() {
-        return !raids.isEmpty();
+        return raids.values().stream().anyMatch(RaidSpawner::isRunning);
     }
 
     /**
      * 指定されたLandで襲撃イベントを実行している場合は true を返す
      */
     public boolean isRunningRaid(Land land) {
-        return raids.containsKey(land);
+        return raids.containsKey(land) && raids.get(land).isRunning();
     }
 
     public boolean startRaidAll(@Nullable Condition reason) {
@@ -581,7 +582,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     }
 
     public boolean startRaid(Land land) {
-        if (raids.containsKey(land))
+        if (isRunningRaid(land))
             throw new IllegalStateException("Already running raids");
 
         if (!getLandAPI().getLands().contains(land))
@@ -769,15 +770,16 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onEndRaid(RaidSpawnEndEvent event) {
-        if (raids.values().remove(event.getRaid())) {
-            if (raids.isEmpty()) {
-                if (gameEndTimer != null) {
-                    gameEndTimer.cancel();
-                    gameEndTimer = null;
-                }
-                getLogger().info("Auto start conditions restarting");
-                startStartConditions();
+        if (!isRunningRaid()) {
+            getServer().getPluginManager().callEvent(new RaidSpawnsAllEndEvent(new ArrayList<>(raids.values())));
+            raids.clear();
+            if (gameEndTimer != null) {
+                gameEndTimer.cancel();
+                gameEndTimer = null;
             }
+
+            getLogger().info("Auto start conditions restarting");
+            startStartConditions();
         }
     }
 
