@@ -8,6 +8,11 @@ event-start:
       time-hours: 22
       time-minutes: 30
 
+  # 開始前通知
+  pre-notify:
+    enable: true
+    minutes: 3
+
 # 襲撃設定
 raid:
   # Land未所属プレイヤーを退出または参加させない設定

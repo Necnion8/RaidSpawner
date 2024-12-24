@@ -46,7 +46,7 @@ public class ConditionWrapper {
                 .orElse(false);
     }
 
-    public void start() {
+    public @Nullable Long start() {
         if (currentTrigger != null && currentTrigger.isActivated()) {
             clear();
         }
@@ -62,6 +62,8 @@ public class ConditionWrapper {
             };
             timer.schedule(timerTask, trigger.getDelayTime());
         }
+
+        return trigger.getDelayTime();
     }
 
     public void clear() {

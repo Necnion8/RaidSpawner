@@ -75,6 +75,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     //
     private @Nullable LandsIntegration lands;
     private @Nullable BukkitTask gameEndTimer;
+    private @Nullable BukkitTask gamePreStartTimer;
 
     @Override
     public void onLoad() {
@@ -510,11 +511,32 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     }
 
     public void startStartConditions() {
-        startConditions.forEach(ConditionWrapper::start);
+        clearStartConditions();
+
+        List<Long> delays = startConditions.stream()
+                .map(ConditionWrapper::start)
+                .filter(Objects::nonNull)
+                .toList();
+
+        Integer notifyMinutes = pluginConfig.getStartNotifyMinutes();
+        if (!delays.isEmpty() && notifyMinutes != null) {
+            delays.stream().mapToLong(v -> v).min().ifPresent(delay -> {
+                delay -= notifyMinutes * 60 * 20;
+                if (0 < delay) {
+                    gamePreStartTimer = getServer().getScheduler().runTaskLater(this, () -> {
+                        // TODO: show prestart
+                    }, delay);
+                }
+            });
+        }
     }
 
     public void clearStartConditions() {
         startConditions.forEach(ConditionWrapper::clear);
+        if (gamePreStartTimer != null) {
+            gamePreStartTimer.cancel();
+            gamePreStartTimer = null;
+        }
     }
 
     private void onStartTrigger(ConditionWrapper condition) {

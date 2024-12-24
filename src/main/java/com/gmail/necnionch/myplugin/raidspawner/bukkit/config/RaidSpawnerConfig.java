@@ -172,6 +172,13 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 .orElse("&c襲撃イベントが発生しているため、現在は参加できません。");
     }
 
+    public Integer getStartNotifyMinutes() {
+        if (config.getBoolean("event-start.enable")) {
+            return config.getInt("event-start.pre-notify", 3);
+        }
+        return null;
+    }
+
     //
 
     public record ConditionItem(ConfigurationSection config, Actions actions) {
