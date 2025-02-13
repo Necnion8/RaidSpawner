@@ -10,13 +10,14 @@ import java.io.*;
 import java.util.logging.Logger;
 
 
+// version 4 (generateNewFile, generateResourceFile)
 // version 3 (add:isExistFile(), getLogger())
 @SuppressWarnings({"ResultOfMethodCallIgnored", "UnstableApiUsage"})
 public class BukkitConfigDriver {
     private final JavaPlugin plugin;
     private final Logger logger;
-    private String fileName = "config.yml";
-    private String resourceFileName = "bukkit-config.yml";
+    protected String fileName = "config.yml";
+    protected String resourceFileName = "bukkit-config.yml";
     public FileConfiguration config = null;
 
     private String header = null;
@@ -43,6 +44,24 @@ public class BukkitConfigDriver {
         return new File(plugin.getDataFolder(), fileName).isFile();
     }
 
+    // add: v4
+    public void generateNewFile(File file) throws IOException {
+        generateResourceFile(file);
+    }
+
+    // add: v4
+    public boolean generateResourceFile(File file) throws IOException {
+        file.createNewFile();
+        try (InputStream resource = plugin.getResource(resourceFileName)) {
+            if (resource == null)
+                return false;
+            try (OutputStream outputStream = new FileOutputStream(file)) {
+                ByteStreams.copy(resource, outputStream);
+            }
+        }
+        return true;
+    }
+
     public boolean load() {
         try {
             if (!plugin.getDataFolder().exists())
@@ -51,16 +70,16 @@ public class BukkitConfigDriver {
             File file = new File(plugin.getDataFolder(), fileName);
 
             if (!file.exists()) {
-                file.createNewFile();
-                try (InputStream inputStream = plugin.getResource(resourceFileName);
-                     OutputStream outputStream = new FileOutputStream(file)) {
-                    ByteStreams.copy(inputStream, outputStream);
-                }
+                generateNewFile(file);
             }
 
             FileConfiguration config;
-            try (InputStreamReader stream = new InputStreamReader(new FileInputStream(file), Charsets.UTF_8)) {
-                config = YamlConfiguration.loadConfiguration(stream);
+            if (file.exists()) {
+                try (InputStreamReader stream = new InputStreamReader(new FileInputStream(file), Charsets.UTF_8)) {
+                    config = YamlConfiguration.loadConfiguration(stream);
+                }
+            } else {
+                config = new YamlConfiguration();
             }
 
             this.config = config;

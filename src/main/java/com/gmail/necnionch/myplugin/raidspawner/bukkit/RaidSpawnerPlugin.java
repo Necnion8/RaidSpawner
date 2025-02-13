@@ -10,6 +10,8 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStart
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PlaceholderReplacer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PluginBridge;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.Lang;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.RaidSpawnerLang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.map.ChunkViewRenderer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
@@ -61,6 +63,7 @@ import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     private final RaidSpawnerConfig pluginConfig = new RaidSpawnerConfig(this);
+    private final RaidSpawnerLang pluginLang = new RaidSpawnerLang(this);
     private final Timer timer = new Timer("RaidSpawner-Timer", true);
     private final Map<String, ConditionProvider<?>> conditionProviders = new HashMap<>();
     private final Map<String, ActionProvider<?>> landActionProviders = new HashMap<>();
@@ -100,6 +103,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             getServer().getScheduler().runTask(this, () -> getLogger().warning(
                     "There is a configuration error, please fix configuration and reload."));
         }
+        pluginLang.load();
 
         hookPlaceholderAPI();
         if (getServer().getPluginManager().isPluginEnabled("LuckPerms")) {
@@ -262,6 +266,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         if (enableDebug) {
             getLogger().warning("[DEBUG]: " + message.get());
         }
+    }
+
+    public RaidSpawnerConfig getPluginConfig() {
+        return pluginConfig;
+    }
+
+    public RaidSpawnerLang getPluginLang() {
+        return pluginLang;
     }
 
     private void onFindChunkCommand(Player p) {
@@ -631,7 +643,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             if (pluginConfig.isNonMembersKick()) {
                 for (Player p : getServer().getOnlinePlayers()) {
                     if (!p.hasPermission(RaidSpawnerUtil.NON_MEMBERS_KICK_PERMISSION) && getLandAPI().getLandPlayer(p.getUniqueId()) == null) {
-                        p.kickPlayer(ChatColor.translateAlternateColorCodes('&', pluginConfig.getNonMembersKickMessage()));
+                        p.kickPlayer(pluginLang.format(Lang.NON_MEMBERS_PLAYER_KICK_MESSAGE));
                     }
                 }
             }
@@ -812,7 +824,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         // 未所属キック
         if (!event.getPlayer().hasPermission(RaidSpawnerUtil.NON_MEMBERS_KICK_PERMISSION) && getLandAPI().getLandPlayer(event.getPlayer().getUniqueId()) == null) {
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, ChatColor.translateAlternateColorCodes('&', pluginConfig.getNonMembersKickMessage()));
+            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, pluginLang.format(Lang.NON_MEMBERS_JOIN_DENY_MESSAGE));
         }
     }
 

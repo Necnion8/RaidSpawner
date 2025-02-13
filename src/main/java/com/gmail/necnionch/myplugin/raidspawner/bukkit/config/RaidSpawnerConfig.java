@@ -167,11 +167,6 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         return config.getBoolean("raid.non-members-kick.enable", true);
     }
 
-    public String getNonMembersKickMessage() {
-        return Optional.ofNullable(config.getString("raid.non-members-kick.kick-message"))
-                .orElse("&c襲撃イベントが発生しているため、現在は参加できません。");
-    }
-
     public Integer getStartNotifyMinutes() {
         if (config.getBoolean("event-start.enable")) {
             return config.getInt("event-start.pre-notify", 3);
