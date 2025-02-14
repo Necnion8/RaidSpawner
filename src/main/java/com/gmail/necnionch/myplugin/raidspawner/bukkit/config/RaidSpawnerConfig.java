@@ -167,11 +167,19 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         return config.getBoolean("raid.non-members-kick.enable", true);
     }
 
-    public Integer getStartNotifyMinutes() {
-        if (config.getBoolean("event-start.enable")) {
-            return config.getInt("event-start.pre-notify", 3);
-        }
-        return null;
+    public EventStart.PreNotify getStartPreNotify() {
+        return new EventStart.PreNotify(
+                config.getBoolean("event-start.pre-notify.enable"),
+                config.getInt("event-start.pre-notify-minutes", 3)
+        );
+    }
+
+    public EventStart.StartNotify getStartNotify() {
+        return new EventStart.StartNotify(
+                config.getBoolean("event-start.start-notify.title-obfuscated-animation"),
+                config.getBoolean("event-start.start-notify.blind-effect"),
+                config.getBoolean("event-start.start-notify.teleport-to-land")
+        );
     }
 
     //

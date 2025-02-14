@@ -3,10 +3,12 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.EventStart;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsAllEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartNotifyEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PlaceholderReplacer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PluginBridge;
@@ -17,6 +19,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.LandChunkFindResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
@@ -246,7 +249,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 return true;
             }
 
-            RaidSpawner spawner = createRaidSpawner(land, p.getWorld(), Collections.emptyList());
+            RaidSpawner spawner = createRaidSpawner(new LandChunkFindResult(land, p.getWorld(), Collections.emptyList(), Collections.emptyList()));
             Action action;
             try {
                 action = createLandAction("remove-chunk", 1, null);
@@ -277,8 +280,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     }
 
     private void onFindChunkCommand(Player p) {
-        findLandsRaidChunks(getLandAPI().getLands()).forEach((land, chunks) -> {
-            p.sendMessage("- " + land.getName() + " -> spawn " + chunks.size() + " chunks");
+        findLandsRaidChunks(getLandAPI().getLands()).forEach(result -> {
+            p.sendMessage("- " + result.land().getName() + " -> spawn " + result.raidChunks().size() + " chunks");
         });
         ChunkViewRenderer.RENDERERS.forEach(ChunkViewRenderer::updateLandsList);
     }
@@ -330,11 +333,11 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 .orElse(null);
     }
 
-    private Map<Land, List<RaidSpawner.Chunk>> findLandsRaidChunks(Collection<Land> lands) {
+    private List<LandChunkFindResult> findLandsRaidChunks(Collection<Land> lands) {
         int distanceChunks = pluginConfig.getRaidSetting().mobsDistanceChunks();
         Function<Land, World> worlds = getLandSpawnOrConfigWorld();  // throws IllegalArgumentException
 
-        Map<Land, List<RaidSpawner.Chunk>> landsRaidChunks = new HashMap<>();
+        List<LandChunkFindResult> results = new ArrayList<>();
         Set<String> safeChunks = new HashSet<>();
 
         for (Land land : getLandAPI().getLands()) {
@@ -346,7 +349,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 }
 
                 List<RaidSpawner.Chunk> chunks = new ArrayList<>();
-                landsRaidChunks.put(land, chunks);
+                List<ChunkCoordinate> landChunks = new ArrayList<>();
 
                 for (Container container : land.getContainers()) {
                     for (ChunkCoordinate chunk : container.getChunks()) {
@@ -369,10 +372,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                                 chunks.add(new RaidSpawner.Chunk(land, world, maxX - i, maxZ));
                                 chunks.add(new RaidSpawner.Chunk(land, world, minX, maxZ - i));
                             }
+                            // Landチャンク
+                            landChunks.add(chunk);
                         }
 
                     }
                 }
+
+                results.add(new LandChunkFindResult(land, world, landChunks, chunks));
 
             } else {  // no raid
                 for (Container container : land.getContainers()) {
@@ -389,17 +396,17 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }
 
         lastFindSpawnChunksResult = LinkedHashMultimap.create();
-        for (Iterator<List<RaidSpawner.Chunk>> it = landsRaidChunks.values().iterator(); it.hasNext(); ) {
-            List<RaidSpawner.Chunk> landRaidChunks = it.next();
-            landRaidChunks.removeIf(c -> safeChunks.contains(c.toString()));
-            if (landRaidChunks.isEmpty()) {
+        for (Iterator<LandChunkFindResult> it = results.iterator(); it.hasNext(); ) {
+            List<RaidSpawner.Chunk> raidChunks = it.next().raidChunks();
+            raidChunks.removeIf(c -> safeChunks.contains(c.toString()));
+            if (raidChunks.isEmpty()) {
                 it.remove();
             } else {
-                landRaidChunks.forEach(chunk -> lastFindSpawnChunksResult.put(chunk.toString(), chunk));
+                raidChunks.forEach(c -> lastFindSpawnChunksResult.put(c.toString(), c));
             }
         }
 
-        return landsRaidChunks;
+        return results;
     }
 
     @Nullable
@@ -530,14 +537,12 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 .filter(Objects::nonNull)
                 .toList();
 
-        Integer notifyMinutes = pluginConfig.getStartNotifyMinutes();
-        if (!delays.isEmpty() && notifyMinutes != null) {
+        EventStart.PreNotify preNotify = pluginConfig.getStartPreNotify();
+        if (!delays.isEmpty() && preNotify.enable()) {
             delays.stream().mapToLong(v -> v).min().ifPresent(delay -> {
-                delay -= notifyMinutes * 60 * 20;
+                delay = (Math.round(delay / 1000d) - preNotify.minutes() * 60L) * 20;
                 if (0 < delay) {
-                    gamePreStartTimer = getServer().getScheduler().runTaskLater(this, () -> {
-                        // TODO: show prestart
-                    }, delay);
+                    gamePreStartTimer = getServer().getScheduler().runTaskLater(this, this::onPreStartNotify, delay);
                 }
             });
         }
@@ -559,6 +564,21 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         clearStartConditions();
         startRaidAll(condition.getCondition());
+    }
+
+    private void onPreStartNotify() {
+        getLogger().info("Send pre-start notify");
+        RaidSpawnsPreStartNotifyEvent event = new RaidSpawnsPreStartNotifyEvent();
+        getServer().getPluginManager().callEvent(event);
+
+        if (event.isCancelled())
+            return;
+
+        EventStart.PreNotify config = pluginConfig.getStartPreNotify();
+        if (!config.enable())
+            return;
+
+        getServer().getOnlinePlayers().forEach(p -> pluginLang.send(p, Lang.PRESTART_NOTIFY_BROADCAST_MESSAGE));
     }
 
     // raids
@@ -583,7 +603,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
         raids.clear();
         findLandsRaidChunks(getLandAPI().getLands())
-                .forEach((key, value) -> raids.put(key, createRaidSpawner(value)));
+                .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
 
         RaidSpawnsPreStartEvent myEvent = new RaidSpawnsPreStartEvent(raids.values(), reason);
         getServer().getPluginManager().callEvent(myEvent);
@@ -627,7 +647,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             throw new IllegalArgumentException("Land '" + land.getName() + "` spawn world is null");
 
         findLandsRaidChunks(Collections.singleton(land))
-                .forEach((key, value) -> raids.put(key, createRaidSpawner(value)));
+                .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
 
         processRaidStart();
         return true;
@@ -670,12 +690,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     //
 
-    public RaidSpawner createRaidSpawner(List<RaidSpawner.Chunk> raidChunks) {
-        RaidSpawner.Chunk first = raidChunks.iterator().next();
-        return createRaidSpawner(first.land(), first.world(), raidChunks);
-    }
-
-    public RaidSpawner createRaidSpawner(Land land, World world, List<RaidSpawner.Chunk> spawnChunks) {
+    public RaidSpawner createRaidSpawner(LandChunkFindResult landChunkFindResult) {
         List<ConditionWrapper> conditions = new ArrayList<>();
 
         // win cond
@@ -700,9 +715,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         List<Action> winElseActions = createActions("win-else", pluginConfig.getWinRewardElseActions());
         List<Action> loseActions = createActions("lose", pluginConfig.getLoseRewardActions());
 
-        return new RaidSpawner(land, pluginConfig.getRaidSetting(), world, spawnChunks, new RaidSpawner.Rewards(
-                conditions, winElseActions, loseActions
-        ));
+        return new RaidSpawner(
+                landChunkFindResult.land(),
+                pluginConfig.getRaidSetting(),
+                landChunkFindResult.world(),
+                landChunkFindResult.raidChunks(),
+                landChunkFindResult.landChunks(),
+                new RaidSpawner.Rewards(conditions, winElseActions, loseActions)
+        );
     }
 
     public List<Action> createActions(String configName, Actions config) {

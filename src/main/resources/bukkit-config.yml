@@ -13,6 +13,13 @@ event-start:
     enable: true
     minutes: 3
 
+  # 開始通知
+  start-notify:
+    # 盲目の付与
+    blind-effect: true
+    # Landスポーンが設定されていなければ、敷地内のランダムな位置にテレポートします
+    teleport-to-land: true
+
 # 襲撃設定
 raid:
   # Land未所属プレイヤーを退出または参加させない設定

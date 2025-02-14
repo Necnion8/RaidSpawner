@@ -3,6 +3,7 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit.lang;
 import com.gmail.necnionch.myplugin.raidspawner.common.BukkitConfigDriver;
 import com.google.common.base.Charsets;
 import org.bukkit.ChatColor;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -22,6 +23,13 @@ public class RaidSpawnerLang extends BukkitConfigDriver {
 
     public String format(Lang lang, Object... args) {
         return String.format(ChatColor.translateAlternateColorCodes('&', get(lang)), args);
+    }
+
+    public void send(CommandSender sender, Lang lang, Object... args) {
+        String formatted = format(lang, args);
+        if (!formatted.isEmpty()) {
+            sender.sendMessage(formatted);
+        }
     }
 
     @Override

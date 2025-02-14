@@ -4,16 +4,20 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.EventStart;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PluginBridge;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.Lang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
+import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
+import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -24,6 +28,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.world.EntitiesUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -34,11 +40,13 @@ public class RaidSpawner {
     public static final Multimap<KeepChunk, UUID> keepChunksByEntities = LinkedHashMultimap.create();
 
     private final RaidSpawnerPlugin plugin = JavaPlugin.getPlugin(RaidSpawnerPlugin.class);
+    private final Random random = new Random();
     private final Land land;
     private final RaidSetting setting;
     private final World world;
     private final List<Chunk> spawnChunks;
     private final Rewards rewards;
+    private final List<ChunkCoordinate> landChunks;
     private boolean running;
     private int waves;
     private final List<Enemy> currentEnemies = new ArrayList<>();
@@ -46,11 +54,12 @@ public class RaidSpawner {
     private @Nullable RaidEndReason endReason;
     private @Nullable Map<Class<Action>, Boolean> endActionResults;
 
-    public RaidSpawner(Land land, RaidSetting setting, World world, List<Chunk> spawnChunks, Rewards rewards) {
+    public RaidSpawner(Land land, RaidSetting setting, World world, List<Chunk> spawnChunks, List<ChunkCoordinate> landChunks, Rewards rewards) {
         this.land = land;
         this.setting = setting;
         this.world = world;
         this.spawnChunks = Collections.unmodifiableList(spawnChunks);
+        this.landChunks = Collections.unmodifiableList(landChunks);
         this.rewards = rewards;
     }
 
@@ -64,6 +73,10 @@ public class RaidSpawner {
 
     public List<Chunk> getSpawnChunks() {
         return spawnChunks;
+    }
+
+    public List<ChunkCoordinate> getLandChunks() {
+        return landChunks;
     }
 
     public World getWorld() {
@@ -105,17 +118,48 @@ public class RaidSpawner {
         return endActionResults;
     }
 
+    public void teleportToSpawn(Collection<Player> players) {
+        UnloadedPosition pos = land.getSpawnPosition();
+
+        if (pos != null && pos.isTargetServer() && world.getName().equals(pos.getWorldName())) {
+            Location location = pos.toLocation();
+            if (location != null) {
+                players.forEach(p -> p.teleport(location));
+                return;
+            }
+        }
+
+        if (landChunks.isEmpty())
+            return;
+
+        ChunkCoordinate chunk = landChunks.get(random.nextInt(landChunks.size()));
+        Location location = selectRandomSpawnLocationByChunk(world.getChunkAt(chunk.getX(), chunk.getZ()), random, false);
+        if (location != null) {
+            players.forEach(p -> p.teleport(location));
+        }
+    }
+
     public void start() {
         running = true;
-        rewards.rewardConditions.forEach(ConditionWrapper::start);
-
         RaidSpawnerUtil.getLogger().info("Raid started: " + land.getName());
+
+        Collection<Player> players = land.getOnlinePlayers();
+        players.forEach(p -> plugin.getPluginLang().send(p, Lang.START_MESSAGE));
+
+        EventStart.StartNotify notifyConfig = plugin.getPluginConfig().getStartNotify();
+        if (notifyConfig.teleportToLand()) {
+            teleportToSpawn(players);
+        }
+
+        playStartNotify(notifyConfig, players);
+
         Bukkit.getPluginManager().callEvent(new RaidSpawnStartEvent(this));
+        rewards.rewardConditions.forEach(ConditionWrapper::start);
 
         String groupName = setting.luckPermsGroup();
         if (groupName != null) {
             PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
-                for (Player player : land.getOnlinePlayers()) {
+                for (Player player : players) {
                     perms.addPermissionGroup(player, groupName);
                 }
             });
@@ -222,7 +266,6 @@ public class RaidSpawner {
                 .forEach(RaidSpawner::unsetKeepChunkWithEntity);
 
         currentEnemies.removeIf(e -> !e.isAlive());  // keep alive
-        Random random = new Random();
 
         // select enemy
         RaidSpawnerUtil.d(() -> "setting.mobs -> " + setting.mobs().size() + " | land: " + land.getName());
@@ -318,6 +361,23 @@ public class RaidSpawner {
             return block.getLocation().add(.5, 1, .5);
         }
         return null;
+    }
+
+    private void playStartNotify(EventStart.StartNotify notify, Collection<Player> players) {
+        if (notify.bindEffect()) {
+            PotionEffect pot = new PotionEffect(PotionEffectType.BLINDNESS, 20 * 2, 0, false, false, false);
+            players.forEach(pot::apply);
+        }
+
+        String title = plugin.getPluginLang().format(Lang.START_TITLE);
+        String subtitle = plugin.getPluginLang().format(Lang.START_SUBTITLE);
+        if (title.isEmpty() && subtitle.isEmpty())
+            return;
+
+        for (Player player : players) {
+            player.resetTitle();
+            player.sendTitle(title, subtitle, 10, 20 * 4, 10);
+        }
     }
 
 
