@@ -49,6 +49,7 @@ public class RaidSpawner {
     private final List<ChunkCoordinate> landChunks;
     private boolean running;
     private int waves;
+    private long endTime = -1;  // 負の値で開始時刻; 正の値で終了にかかった時間(ms)
     private final List<Enemy> currentEnemies = new ArrayList<>();
     private @Nullable RaidEndResult endResult;
     private @Nullable RaidEndReason endReason;
@@ -118,6 +119,14 @@ public class RaidSpawner {
         return endActionResults;
     }
 
+    /**
+     * イベント終了までにかかった時間(ミリ秒)
+     * @return 終了していない場合は -1 を返します
+     */
+    public long getEndTime() {
+        return endTime < 0 ? -1 : endTime;
+    }
+
     public void teleportToSpawn(Collection<Player> players) {
         UnloadedPosition pos = land.getSpawnPosition();
 
@@ -141,10 +150,11 @@ public class RaidSpawner {
 
     public void start() {
         running = true;
+        endTime = -System.currentTimeMillis();
         RaidSpawnerUtil.getLogger().info("Raid started: " + land.getName());
 
         Collection<Player> players = land.getOnlinePlayers();
-        players.forEach(p -> plugin.getPluginLang().send(p, Lang.START_MESSAGE));
+        plugin.getPluginLang().send(players, Lang.START_MESSAGE);
 
         EventStart.StartNotify notifyConfig = plugin.getPluginConfig().getStartNotify();
         if (notifyConfig.teleportToLand()) {
@@ -171,6 +181,9 @@ public class RaidSpawner {
     public void clear(RaidEndResult result, @Nullable RaidEndReason reason) {
         RaidSpawnerUtil.getLogger().info("Raid ended: " + land.getName() + " (" + result.name() + ", " + Optional.ofNullable(reason).map(RaidEndReason::getType).orElse("none") + ")");
         running = false;
+        if (endTime < 0) {
+            endTime = System.currentTimeMillis() + endTime;
+        }
 
         Map<Class<Action>, Boolean> actionResults = null;
         try {
@@ -192,6 +205,15 @@ public class RaidSpawner {
             }
         });
         currentEnemies.clear();
+
+        Collection<Player> players = land.getOnlinePlayers();
+        if (RaidEndResult.CANCEL.equals(result)) {
+            plugin.getPluginLang().send(players, Lang.END_CANCEL_MESSAGE);
+        } else if (RaidEndResult.WIN.equals(result)) {
+            plugin.getPluginLang().send(players, Lang.END_WIN_MESSAGE);
+        } else if (RaidEndResult.LOSE.equals(result)) {
+            plugin.getPluginLang().send(players, Lang.END_LOSE_MESSAGE);
+        }
 
         Bukkit.getPluginManager().callEvent(new RaidSpawnEndEvent(this, result, reason));
 

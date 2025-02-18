@@ -9,6 +9,7 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
 - [MythicMobs](https://www.spigotmc.org/resources/5702) (optional)
 - [PlaceholderAPI](https://www.spigotmc.org/resources/6245) (optional)
 - [LuckPerms](https://www.spigotmc.org/resources/28140) (optional)
+- [DiscordSRV](https://modrinth.com/plugin/discordsrv) (optional, v1.29.0 でテスト)
 
 
 ## ライセンス

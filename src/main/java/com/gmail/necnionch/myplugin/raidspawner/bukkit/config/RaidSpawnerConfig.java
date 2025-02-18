@@ -176,10 +176,21 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
 
     public EventStart.StartNotify getStartNotify() {
         return new EventStart.StartNotify(
-                config.getBoolean("event-start.start-notify.title-obfuscated-animation"),
-                config.getBoolean("event-start.start-notify.blind-effect"),
-                config.getBoolean("event-start.start-notify.teleport-to-land")
+                config.getBoolean("event-start.start-notify.title-obfuscated-animation", true),
+                config.getBoolean("event-start.start-notify.blind-effect", true),
+                config.getBoolean("event-start.start-notify.teleport-to-land", true)
         );
+    }
+
+    public boolean isSendResultToDiscordOnEventEnd() {
+        return config.getBoolean("event-end.send-result-to-discord", true);
+    }
+
+    public Long getDiscordChannelIdWithEnabled() {
+        if (config.getBoolean("discord.enable", false) && config.isLong("discord.channel")) {
+            return config.getLong("discord.channel", 0);
+        }
+        return null;
     }
 
     //

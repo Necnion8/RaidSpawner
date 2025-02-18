@@ -68,3 +68,15 @@ event-lose-rewards:
     player:
     land:
       remove-chunk: 1
+
+# イベント終了設定
+event-end:
+  send-result-to-discord: true
+
+
+# Discord連携設定
+discord:
+  # 連携機能の有効 (DiscordSRVが必要です)
+  enable: false
+  # 通知を送信するチャンネルID
+  channel: 000000000000000000

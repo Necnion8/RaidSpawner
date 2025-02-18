@@ -9,9 +9,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsAllEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartNotifyEvent;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PlaceholderReplacer;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PluginBridge;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.Lang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.RaidSpawnerLang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.map.ChunkViewRenderer;
@@ -80,6 +78,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     private @Nullable Multimap<String, RaidSpawner.Chunk> lastFindSpawnChunksResult;
     //
     private @Nullable LandsIntegration lands;
+    private @Nullable JDAInterface jdaInterface;
     private @Nullable BukkitTask gameEndTimer;
     private @Nullable BukkitTask gamePreStartTimer;
 
@@ -112,6 +111,18 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         if (getServer().getPluginManager().isPluginEnabled("LuckPerms")) {
             try {
                 LuckPermsBridge bridge = new LuckPermsBridge();
+                if (bridge.hook()) {
+                    PluginBridge.put(bridge);
+                }
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
+        jdaInterface = null;
+        if (getServer().getPluginManager().isPluginEnabled("DiscordSRV")) {
+            try {
+                DiscordSRVBridge bridge;
+                jdaInterface = bridge = new DiscordSRVBridge(getLogger());
                 if (bridge.hook()) {
                     PluginBridge.put(bridge);
                 }
@@ -153,7 +164,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             conditionProviders.clear();
             landActionProviders.clear();
             playerActionProviders.clear();
-            
+
             enemyProviders.values().forEach(p -> {
                 try {
                     p.unload();
@@ -162,6 +173,18 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
                 }
             });
             enemyProviders.clear();
+
+            for (Iterator<PluginBridge> it = PluginBridge.BRIDGES.values().iterator(); it.hasNext(); ) {
+                PluginBridge bridge = it.next();
+                try {
+                    if (bridge.isHooked()) {
+                        bridge.unhook();
+                    }
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+                it.remove();
+            }
 
         } finally {
             lands = null;
@@ -457,6 +480,11 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return Objects.requireNonNull(lands, "LandsIntegration is not hooked");
     }
 
+    @Nullable
+    public JDAInterface getJDAInterface() {
+        return jdaInterface;
+    }
+
     public Map<String, ConditionProvider<?>> conditionProviders() {
         return conditionProviders;
     }
@@ -578,7 +606,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         if (!config.enable())
             return;
 
-        getServer().getOnlinePlayers().forEach(p -> pluginLang.send(p, Lang.PRESTART_NOTIFY_BROADCAST_MESSAGE));
+        pluginLang.send(getServer().getOnlinePlayers(), Lang.PRESTART_NOTIFY_BROADCAST_MESSAGE);
     }
 
     // raids
@@ -825,11 +853,46 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onEndRaid(RaidSpawnEndEvent event) {
         if (!isRunningRaid()) {
-            getServer().getPluginManager().callEvent(new RaidSpawnsAllEndEvent(new ArrayList<>(raids.values())));
+            List<RaidSpawner> endRaids = new ArrayList<>(raids.values());
+            endRaids.sort(Comparator.comparingLong(RaidSpawner::getEndTime));
+
+            getServer().getPluginManager().callEvent(new RaidSpawnsAllEndEvent(endRaids));
             raids.clear();
             if (gameEndTimer != null) {
                 gameEndTimer.cancel();
                 gameEndTimer = null;
+            }
+
+            if (jdaInterface != null && pluginConfig.isSendResultToDiscordOnEventEnd()) {
+                Long discordChannelId = pluginConfig.getDiscordChannelIdWithEnabled();
+                if (discordChannelId != null) {
+                    List<RaidSpawner> wins = endRaids.stream().filter(r -> !r.isLose()).toList();
+                    List<RaidSpawner> loses = endRaids.stream().filter(RaidSpawner::isLose).toList();
+
+                    StringBuilder sb = new StringBuilder();
+                    if (wins.isEmpty()) {
+                        sb.append("土地を守り抜いたLandはありませんでした･･･\n\n");
+                    } else {
+                        sb.append("土地を守り抜いたLand:\n");
+                        for (RaidSpawner win : wins) {
+                            sb.append("- ").append(win.getLand().getName()).append("\n");
+                        }
+                        sb.append("\n");
+                    }
+
+                    if (!loses.isEmpty()) {
+                        sb.append("侵略されたLand:\n");
+                        for (RaidSpawner lose : loses) {
+                            sb.append("- ").append(lose.getLand().getName());
+                            if (RaidEndReason.NO_PLAYERS.equals(lose.getEndReason())) {
+                                sb.append(" (プレイヤー不在)");
+                            }
+                            sb.append("\n");
+                        }
+                    }
+
+                    jdaInterface.sendMessage(sb.toString(), discordChannelId);
+                }
             }
 
             getLogger().info("Auto start conditions restarting");

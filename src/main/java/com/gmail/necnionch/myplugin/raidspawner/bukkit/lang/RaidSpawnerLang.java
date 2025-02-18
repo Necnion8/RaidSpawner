@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.Collection;
 
 public class RaidSpawnerLang extends BukkitConfigDriver {
     public RaidSpawnerLang(JavaPlugin plugin) {
@@ -29,6 +30,13 @@ public class RaidSpawnerLang extends BukkitConfigDriver {
         String formatted = format(lang, args);
         if (!formatted.isEmpty()) {
             sender.sendMessage(formatted);
+        }
+    }
+
+    public <S extends CommandSender> void send(Collection<S> senders, Lang lang, Object... args) {
+        String formatted = format(lang, args);
+        if (!formatted.isEmpty()) {
+            senders.forEach(p -> p.sendMessage(formatted));
         }
     }
 
