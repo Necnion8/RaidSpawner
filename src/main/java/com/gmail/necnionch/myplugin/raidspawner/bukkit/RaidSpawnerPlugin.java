@@ -13,7 +13,6 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.Lang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.RaidSpawnerLang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.map.ChunkViewRenderer;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
@@ -21,6 +20,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.LandChunkFindResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.LandsIntegration;
@@ -28,11 +28,11 @@ import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
 import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
-import me.angeschossen.lands.api.player.LandPlayer;
 import me.clip.placeholderapi.PlaceholderAPI;
-import org.bukkit.*;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
+import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
+import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -49,7 +49,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapView;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
@@ -59,10 +58,9 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
+public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, RaidSpawnerAPI {
     private final RaidSpawnerConfig pluginConfig = new RaidSpawnerConfig(this);
     private final RaidSpawnerLang pluginLang = new RaidSpawnerLang(this);
     private final Timer timer = new Timer("RaidSpawner-Timer", true);
@@ -194,110 +192,22 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        // TODO: impl command
-        if (args.length == 0) {
-//            sender.sendMessage(ChatColor.GRAY + "Loaded chunks: " + String.join(", ", Arrays.stream(getServer().getWorld("world").getLoadedChunks())
-//                    .map(c -> c.getX() + "," + c.getZ()).collect(Collectors.toSet())));
-            for (World w : Bukkit.getWorlds()) {
-                sender.sendMessage(ChatColor.AQUA + "=== Ticket Chunks: " + w.getName() + " ===");
-                for (Map.Entry<Plugin, Collection<Chunk>> e : w.getPluginChunkTickets().entrySet()) {
-                    Plugin owner = e.getKey();
-                    Collection<Chunk> chunks = e.getValue();
-                    sender.sendMessage(ChatColor.WHITE + owner.getName() + ": " + ChatColor.GRAY + chunks.stream().map(c -> c.getX() + "," + c.getZ()).collect(Collectors.joining(", ")));
-                }
-            }
-            sender.sendMessage();
-
-            sender.sendMessage("currentRaids: " + raids.size());
-            if (!raids.isEmpty()) {
-                sender.sendMessage(ChatColor.AQUA + "=== Raids ===");
-                for (RaidSpawner spawner : raids.values()) {
-                    sender.sendMessage(ChatColor.GOLD + "- raid: " + spawner.getLand().getName() + " land" + " | running:" + spawner.isRunning() + ", " + Optional.ofNullable(spawner.getEndResult()).map(Enum::name).orElse("N/A"));
-                    sender.sendMessage("  wave: " + spawner.getWave() + "/" + spawner.getMaxWaves());
-                    List<Enemy> enemies = spawner.currentEnemies();
-                    sender.sendMessage("  alive: " + enemies.stream().filter(Enemy::isAlive).count() + "/" + enemies.size());
-                    sender.sendMessage("  running: " + spawner.isRunning() + " (lose: " + spawner.isLose() + ")");
-                }
-            }
-
-            List<ConditionWrapper> cond = startConditions;
-            if (!cond.isEmpty()) {
-                sender.sendMessage(ChatColor.AQUA + "=== Auto Start ===");
-                for (ConditionWrapper c : cond) {
-                    sender.sendMessage(ChatColor.GOLD + "- type: " + c.getType());
-                    sender.sendMessage("  activated: " + c.isActivated());
-                    int remaining = Optional.ofNullable(c.getCondition().getRemainingTimePreview())
-                            .map(v -> Math.round((float) v / 1000))
-                            .orElse(-1);
-                    sender.sendMessage("  remaining: " + remaining);
-                }
-            }
-
-        } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("me")) {
-            Player p = (Player) sender;
-            LandPlayer landPlayer = getLandAPI().getLandPlayer(p.getUniqueId());
-            if (landPlayer == null) {
-                sender.sendMessage(ChatColor.RED + "No Land Player");
-                return true;
-            }
-
-            Land land = getLandAPI().getLandByChunk(p.getWorld(), p.getLocation().getChunk().getX(), p.getLocation().getChunk().getZ());
-            if (land == null) {
-                sender.sendMessage(ChatColor.RED + "No land current position");
-                return true;
-            }
-
-            sender.sendMessage("Start land raid: " + land.getName());
-            sender.sendMessage("result: " + startRaid(land));
-
-        } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("findchunks")) {
-            onFindChunkCommand((Player) sender);
-
-        } else if (sender instanceof Player && args.length == 1 && args[0].equalsIgnoreCase("givemap")) {
-            onGiveMapCommand((Player) sender);
-
-        } else if (sender instanceof Player && args.length == 2 && args[0].equalsIgnoreCase("testp")) {
-            Player p = (Player) sender;
-            LandPlayer landPlayer = getLandAPI().getLandPlayer(p.getUniqueId());
-            if (landPlayer == null) {
-                sender.sendMessage(ChatColor.RED + "No Land Player");
-                return true;
-            }
-
-            Land land = getLandAPI().getLandByChunk(p.getWorld(), p.getLocation().getChunk().getX(), p.getLocation().getChunk().getZ());
-            if (land == null) {
-                sender.sendMessage(ChatColor.RED + "No land current position");
-                return true;
-            }
-
-            RaidSpawner spawner = createRaidSpawner(new LandChunkFindResult(land, p.getWorld(), Collections.emptyList(), Collections.emptyList()));
-            Action action;
-            try {
-                action = createLandAction("remove-chunk", 1, null);
-            } catch (ActionProvider.ConfigurationError e) {
-                throw new RuntimeException(e);
-            }
-
-            ((LandAction) action).doAction(spawner, land);
-            RaidSpawnerUtil.runInMainThread(() -> ChunkViewRenderer.RENDERERS.forEach(ChunkViewRenderer::updateLandsList));
-
-        }
-
-        return true;
-    }
-
     public void logDebug(Supplier<String> message) {
         if (enableDebug) {
             getLogger().warning("[DEBUG]: " + message.get());
         }
     }
 
+    public RaidSpawnerAPI getAPI() {
+        return this;
+    }
+
+    @Override
     public RaidSpawnerConfig getPluginConfig() {
         return pluginConfig;
     }
 
+    @Override
     public RaidSpawnerLang getPluginLang() {
         return pluginLang;
     }
@@ -485,22 +395,27 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return jdaInterface;
     }
 
+    @Override
     public Map<String, ConditionProvider<?>> conditionProviders() {
         return conditionProviders;
     }
 
+    @Override
     public Map<String, ActionProvider<?>> landActionProviders() {
         return landActionProviders;
     }
 
+    @Override
     public Map<String, ActionProvider<?>> playerActionProviders() {
         return playerActionProviders;
     }
 
+    @Override
     public Map<String, EnemyProvider<?>> enemyProviders() {
         return enemyProviders;
     }
 
+    @Override
     public Map<Land, RaidSpawner> getCurrentRaids() {
         return Collections.unmodifiableMap(raids);
     }
@@ -535,6 +450,17 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
             throw new IllegalArgumentException(("Unknown player action type: " + type));
         }
         return playerActionProviders.get(type).create(value, config);
+    }
+
+    public Multimap<World, Chunk> getChunkTickets() {
+        Multimap<World, Chunk> chunks = ArrayListMultimap.create();
+        for (World world : getServer().getWorlds()) {
+            Collection<Chunk> tickets = world.getPluginChunkTickets().get(this);
+            if (tickets == null || tickets.isEmpty())
+                continue;
+            chunks.putAll(world, tickets);
+        }
+        return chunks;
     }
 
     // event start condition
@@ -584,6 +510,16 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    @Override
+    public boolean isStandbyAutoStart() {
+        return !startConditions.isEmpty() && startConditions.stream().anyMatch(c -> !c.isActivated());
+    }
+
+    @Override
+    public List<ConditionWrapper> getAutoStartConditions() {
+        return Collections.unmodifiableList(startConditions);
+    }
+
     private void onStartTrigger(ConditionWrapper condition) {
         if (isRunningRaid()) {
             getLogger().warning("Already running raids (ignored)");
@@ -611,20 +547,18 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
 
     // raids
 
-    /**
-     * いずれかの襲撃イベントを実行している場合は true を返す
-     */
+
+    @Override
     public boolean isRunningRaid() {
         return raids.values().stream().anyMatch(RaidSpawner::isRunning);
     }
 
-    /**
-     * 指定されたLandで襲撃イベントを実行している場合は true を返す
-     */
+    @Override
     public boolean isRunningRaid(Land land) {
         return raids.containsKey(land) && raids.get(land).isRunning();
     }
 
+    @Override
     public boolean startRaidAll(@Nullable Condition reason) {
         if (isRunningRaid())
             throw new IllegalStateException("Already running raids");
@@ -643,6 +577,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         return true;
     }
 
+    @Override
     public void clearRaidAll() {
         if (!isRunningRaid())
             return;
@@ -663,6 +598,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener {
         startStartConditions();
     }
 
+    @Override
     public boolean startRaid(Land land) {
         if (isRunningRaid(land))
             throw new IllegalStateException("Already running raids");
