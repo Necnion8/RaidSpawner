@@ -7,5 +7,6 @@ public interface RaidEndReason {
     RaidEndReason TIMEOUT = () -> "timeout";
     RaidEndReason NO_PLAYERS = () -> "no_players";
     RaidEndReason FULL_WAVES = () -> "full_waves";
+    RaidEndReason COMMAND = () -> "command";
 
 }

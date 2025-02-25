@@ -105,6 +105,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         }
         pluginLang.load();
 
+        Optional.ofNullable(getCommand("raidspawner"))
+                .ifPresent(c -> c.setExecutor(new RaidSpawnerCommandHandler(this, lands)));
+
         hookPlaceholderAPI();
         if (getServer().getPluginManager().isPluginEnabled("LuckPerms")) {
             try {
@@ -148,7 +151,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     public void onDisable() {
         try {
             clearStartConditions();
-            clearRaidAll();
+            clearRaidAll(RaidEndResult.CANCEL, null);
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Exception in raids clear", e);
         }
@@ -578,7 +581,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     }
 
     @Override
-    public void clearRaidAll() {
+    public void clearRaidAll(@Nullable RaidEndResult result, @Nullable RaidEndReason reason) {
         if (!isRunningRaid())
             return;
 
@@ -587,15 +590,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             gameEndTimer = null;
         }
 
-        raids.values().forEach(RaidSpawner::clear);
+        raids.values().forEach(r -> r.clear(Optional.ofNullable(result).orElse(RaidEndResult.CANCEL), reason));
         raids.clear();
         getLogger().info("Raid Spawner Ended");
-    }
-
-    public void clearRaidAllAndRestart() {
-        clearRaidAll();
-        clearStartConditions();
-        startStartConditions();
     }
 
     @Override

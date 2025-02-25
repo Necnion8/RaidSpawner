@@ -15,13 +15,18 @@ softdepend:
   - DiscordSRV
 
 commands:
-  raidspawner: {}
+  raidspawner:
+    permission: raidspawner.command.raidspawner
 
 permissions:
-  raidspawner.admin:
+  raidspawner.command.raidspawner:
     default: op
-    children:
-      - raidspawner.bypass.non-members-kick
 
   raidspawner.bypass.non-members-kick:
     description: "未所属プレイヤーが襲撃イベント中に参加できるようにする権限"
+
+  raidspawner.admin:
+    default: op
+    children:
+      - raidspawner.command.raidspawner
+      - raidspawner.bypass.non-members-kick

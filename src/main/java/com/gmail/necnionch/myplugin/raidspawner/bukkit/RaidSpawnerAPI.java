@@ -10,6 +10,8 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.RaidSpawnerLang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.land.Land;
@@ -58,7 +60,7 @@ public interface RaidSpawnerAPI {
     /**
      * 実行中の襲撃イベントをすべて中止します
      */
-    void clearRaidAll();
+    void clearRaidAll(@Nullable RaidEndResult result, @Nullable RaidEndReason reason);
 
     /**
      * 指定されたLandで襲撃イベントを開始します
