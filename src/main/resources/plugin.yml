@@ -19,9 +19,7 @@ commands:
     permission: raidspawner.command.raidspawner
 
 permissions:
-  raidspawner.command.raidspawner:
-    default: op
-
+  raidspawner.command.raidspawner: {}
   raidspawner.bypass.non-members-kick:
     description: "未所属プレイヤーが襲撃イベント中に参加できるようにする権限"
 
