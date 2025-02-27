@@ -10,12 +10,15 @@ public enum Lang {
     COMMAND_START_RAID_DONE("&6襲撃イベントを %1$s Land で開始しました"),
     COMMAND_START_ALL_RAID_ALREADY_STARTED("&cすでに襲撃イベントを実行しています"),
     COMMAND_START_ALL_RAID_UNABLE_START("&c襲撃イベントを開始できませんでした"),
+    COMMAND_START_ALL_RAID_UNKNOWN_SPAWN("&cLandのスポーン設定が有効ではありません"),
     COMMAND_START_ALL_RAID_DONE("&6襲撃イベントを %1$s Land で開始しました"),
     COMMAND_STOP_RAID_NOT_RUNNING("&c襲撃イベントは開始していません"),
     COMMAND_STOP_RAID_DONE("&6襲撃イベントを終了しました (result: %1$s)"),
     COMMAND_STOP_ALL_RAID_NOT_RUNNING("&c襲撃イベントは開始していません"),
     COMMAND_STOP_ALL_RAID_DONE("&6%2$s Land の襲撃イベントを終了しました (result: %1$s)"),
     COMMAND_RELOAD_DONE("&6設定ファイルを再読み込みしました"),
+
+    NON_PLAYER_SENDER_ERROR("&cプレイヤーのみ実行できます"),
 
     PRESTART_NOTIFY_BROADCAST_MESSAGE("&4不穏な気配を感じる・・・"),
     START_MESSAGE(""),

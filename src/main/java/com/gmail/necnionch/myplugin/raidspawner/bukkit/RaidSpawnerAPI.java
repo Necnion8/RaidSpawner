@@ -8,17 +8,21 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionProvid
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.RaidSpawnerLang;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.map.ChunkViewRenderer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.LandChunkFindResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.google.common.collect.Multimap;
+import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -54,8 +58,9 @@ public interface RaidSpawnerAPI {
      * 全てのLandで襲撃イベントを開始します
      * @return いずれかのLandでイベントが開始できたら true
      * @throws IllegalStateException すでにいずれか襲撃イベントが開始している
+     * @throws IllegalArgumentException Landスポーン地点が設定されていない
      */
-    boolean startRaidAll(@Nullable Condition reason);
+    boolean startRaidAll(@Nullable Condition reason) throws IllegalArgumentException ;
 
     /**
      * 実行中の襲撃イベントをすべて中止します
@@ -104,5 +109,31 @@ public interface RaidSpawnerAPI {
      * プラグインがチャンクの読み込みを強制しているチャンクのリストを返す
      */
     Multimap<World, Chunk> getChunkTickets();
+
+    /**
+     * Landチャンクに基づいて襲撃に必要なチャンクを収集します
+     * @param lands 襲撃を実行するLand
+     * @throws IllegalArgumentException 襲撃に設定されているワールドが存在しない
+     */
+    List<LandChunkFindResult> findLandChunk(@Nullable Collection<Land> lands) throws IllegalArgumentException;
+
+    /**
+     * 前回の findLandChunk の結果を返します
+     */
+    @Nullable List<LandChunkFindResult> getLastLandChunkFindResult();
+
+    /**
+     * {@link ChunkViewRenderer} を取得します
+     */
+    ChunkViewRenderer getChunkViewRenderer();
+
+    /**
+     * 有効な {@link ChunkViewRenderer} のチャンク情報を再読み込みします
+     */
+    void updateChunkViewRendererChunks();
+
+    Collection<Land> getLands();
+
+    LandsIntegration getLandAPI();
 
 }

@@ -21,7 +21,6 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
@@ -29,9 +28,7 @@ import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import me.clip.placeholderapi.PlaceholderAPI;
-import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
@@ -45,10 +42,6 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.EntitiesUnloadEvent;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.inventory.meta.MapMeta;
-import org.bukkit.map.MapView;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
@@ -73,7 +66,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     //
     private final List<ConditionWrapper> startConditions = new ArrayList<>();
     private final Map<Land, RaidSpawner> raids = Collections.synchronizedMap(new HashMap<>());
-    private @Nullable Multimap<String, RaidSpawner.Chunk> lastFindSpawnChunksResult;
+    private @Nullable List<LandChunkFindResult> lastLandChunkFindResult;
     //
     private @Nullable LandsIntegration lands;
     private @Nullable JDAInterface jdaInterface;
@@ -105,9 +98,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         pluginLang.load();
 
         Optional.ofNullable(getCommand("raidspawner"))
-                .ifPresent(c -> c.setExecutor(new RaidSpawnerCommandHandler(this, lands)));
+                .ifPresent(c -> c.setExecutor(new RaidSpawnerCommandHandler(this)));
 
-        hookPlaceholderAPI();
+        setupPlaceholderAPI();
         if (getServer().getPluginManager().isPluginEnabled("LuckPerms")) {
             try {
                 LuckPermsBridge bridge = new LuckPermsBridge();
@@ -148,6 +141,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
     @Override
     public void onDisable() {
+        ChunkViewRenderer.clearAll();
+
         try {
             clearStartConditions();
             clearRaidAll(RaidEndResult.CANCEL, null);
@@ -214,47 +209,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         return pluginLang;
     }
 
-    private void onFindChunkCommand(Player p) {
-        findLandsRaidChunks(getLandAPI().getLands()).forEach(result -> {
-            p.sendMessage("- " + result.land().getName() + " -> spawn " + result.raidChunks().size() + " chunks");
-        });
-        ChunkViewRenderer.RENDERERS.forEach(ChunkViewRenderer::updateLandsList);
-    }
-
-    private void onGiveMapCommand(Player p) {
-        PlayerInventory inv = p.getInventory();
-
-        MapView view;
-        ItemStack itemStack;
-        MapMeta itemMeta;
-        ItemStack mainHandItem = inv.getItemInMainHand();
-        if (Material.FILLED_MAP.equals(mainHandItem.getType())) {
-            // override map
-            itemStack = mainHandItem;
-            view = ((MapMeta) mainHandItem.getItemMeta()).getMapView();
-        } else {
-            itemStack = new ItemStack(Material.FILLED_MAP);
-            view = Bukkit.createMap(p.getWorld());
-        }
-        itemMeta = (MapMeta) itemStack.getItemMeta();
-
-        view.setScale(MapView.Scale.NORMAL);
-        view.getRenderers().forEach(view::removeRenderer);
-        view.addRenderer(new ChunkViewRenderer(this, p.getWorld()));
-        itemMeta.setMapView(view);
-
-        itemStack.setItemMeta(itemMeta);
-
-        if (!itemStack.equals(mainHandItem)) {
-            inv.setItemInMainHand(itemStack);
-            inv.addItem(mainHandItem);
-        }
-        p.updateInventory();
-
-        p.sendMessage("scale: " + view.getScale().name() + ", " + view.getCenterX());
-    }
-
-    private Function<Land, World> getLandSpawnOrConfigWorld() {
+    private Function<Land, World> getLandSpawnOrConfigWorld() throws IllegalArgumentException {
         String worldName = pluginConfig.getRaidSetting().world();
         if (worldName != null) {
             World world = getServer().getWorld(worldName);
@@ -268,11 +223,12 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 .orElse(null);
     }
 
-    private List<LandChunkFindResult> findLandsRaidChunks(Collection<Land> lands) {
+    @Override
+    public List<LandChunkFindResult> findLandChunk(Collection<Land> lands) throws IllegalArgumentException {
         int distanceChunks = pluginConfig.getRaidSetting().mobsDistanceChunks();
-        Function<Land, World> worlds = getLandSpawnOrConfigWorld();  // throws IllegalArgumentException
+        Function<Land, World> worlds = getLandSpawnOrConfigWorld();
 
-        List<LandChunkFindResult> results = new ArrayList<>();
+        List<LandChunkFindResult> results = lastLandChunkFindResult = new ArrayList<>();
         Set<String> safeChunks = new HashSet<>();
 
         for (Land land : getLandAPI().getLands()) {
@@ -330,26 +286,42 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             }
         }
 
-        lastFindSpawnChunksResult = LinkedHashMultimap.create();
+//        lastLandChunkFindResult = LinkedHashMultimap.create();
         for (Iterator<LandChunkFindResult> it = results.iterator(); it.hasNext(); ) {
             List<RaidSpawner.Chunk> raidChunks = it.next().raidChunks();
             raidChunks.removeIf(c -> safeChunks.contains(c.toString()));
             if (raidChunks.isEmpty()) {
                 it.remove();
-            } else {
-                raidChunks.forEach(c -> lastFindSpawnChunksResult.put(c.toString(), c));
+//            } else {
+//                raidChunks.forEach(c -> lastLandChunkFindResult.put(c.toString(), c));
             }
         }
 
-        return results;
+        return lastLandChunkFindResult;
     }
 
     @Nullable
-    public Multimap<String, RaidSpawner.Chunk> getLastFindSpawnChunksResult() {
-        return lastFindSpawnChunksResult;
+    @Override
+    public List<LandChunkFindResult> getLastLandChunkFindResult() {
+        return lastLandChunkFindResult;
     }
 
-    public boolean hookPlaceholderAPI() {
+    @Override
+    public ChunkViewRenderer getChunkViewRenderer() {
+        if (ChunkViewRenderer.RENDERERS.isEmpty()) {
+            return new ChunkViewRenderer(this);
+        }
+        return ChunkViewRenderer.RENDERERS.iterator().next();
+    }
+
+    @Override
+    public void updateChunkViewRendererChunks() {
+        if (lastLandChunkFindResult == null)
+            findLandChunk(getLands());
+        ChunkViewRenderer.setChunksAndLands(lastLandChunkFindResult, getLands());
+    }
+
+    public boolean setupPlaceholderAPI() {
         if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             setPlaceholderReplacer(PlaceholderAPI::setPlaceholders);
             return true;
@@ -388,8 +360,14 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 .forEachOrdered(provider -> enemyProviders.put(provider.getSource(), provider));
     }
 
+    @Override
     public @NotNull LandsIntegration getLandAPI() {
         return Objects.requireNonNull(lands, "LandsIntegration is not hooked");
+    }
+
+    @Override
+    public Collection<Land> getLands() {
+        return getLandAPI().getLands();
     }
 
     @Nullable
@@ -561,12 +539,12 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     }
 
     @Override
-    public boolean startRaidAll(@Nullable Condition reason) {
+    public boolean startRaidAll(@Nullable Condition reason) throws IllegalArgumentException {
         if (isRunningRaid())
             throw new IllegalStateException("Already running raids");
 
         raids.clear();
-        findLandsRaidChunks(getLandAPI().getLands())
+        findLandChunk(getLandAPI().getLands())
                 .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
 
         RaidSpawnsPreStartEvent myEvent = new RaidSpawnsPreStartEvent(raids.values(), reason);
@@ -606,7 +584,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         if (world == null)
             throw new IllegalArgumentException("Land '" + land.getName() + "` spawn world is null");
 
-        findLandsRaidChunks(Collections.singleton(land))
+        findLandChunk(Collections.singleton(land))
                 .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
 
         processRaidStart();

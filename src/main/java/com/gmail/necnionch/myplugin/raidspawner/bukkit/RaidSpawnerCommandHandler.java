@@ -7,14 +7,16 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.google.common.collect.Multimap;
-import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.land.Land;
-import org.bukkit.ChatColor;
-import org.bukkit.Chunk;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.MapMeta;
+import org.bukkit.map.MapView;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,17 +27,15 @@ import java.util.stream.Stream;
 public class RaidSpawnerCommandHandler implements TabExecutor {
 
     private final RaidSpawnerAPI api;
-    private final LandsIntegration lands;
 
-    public RaidSpawnerCommandHandler(RaidSpawnerAPI api, LandsIntegration lands) {
+    public RaidSpawnerCommandHandler(RaidSpawnerAPI api) {
         this.api = api;
-        this.lands = lands;
     }
 
     public Land getLandOrError(int index, String[] args) {
         if (index < args.length) {
             String landName = args[index];
-            return Optional.ofNullable(lands.getLandByName(landName))
+            return Optional.ofNullable(api.getLandAPI().getLandByName(landName))
                     .orElseThrow(() -> new ArgumentError(Lang.COMMAND_NOT_EXISTS_LAND, landName));
         }
         throw new ArgumentError(Lang.COMMAND_NOT_SPECIFIED_LAND);
@@ -47,6 +47,12 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
         } catch (IllegalArgumentException e) {
             throw new ArgumentError(Lang.COMMAND_INVALID_STOP_RESULT);
         }
+    }
+
+    public Player getPlayer(CommandSender sender) {
+        if (sender instanceof Player)
+            return ((Player) sender);
+        throw new ArgumentError(Lang.NON_PLAYER_SENDER_ERROR);
     }
 
 
@@ -65,15 +71,15 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
             } else if (1 <= args.length && "stop".equalsIgnoreCase(args[0])) {
                 Land land = getLandOrError(1, args);
                 executeStopCommand(sender, land, parseEndResultOrError(3 <= args.length ? args[2] : "cancel"));
-            } else if (1 <= args.length && "debugmap".equalsIgnoreCase(args[0])) {
-                sender.sendMessage("Not implemented");  // TODO
+            } else if (1 <= args.length && "chunkmap".equalsIgnoreCase(args[0])) {
+                executeGiveChunkMap(getPlayer(sender));
             } else if (1 <= args.length && "reload".equalsIgnoreCase(args[0])) {
                 executeReloadCommand(sender);
             } else {
                 sender.sendMessage(ChatColor.DARK_GRAY + "## " + ChatColor.RED + "RaidSpawner " + ChatColor.DARK_GRAY + "##");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "status");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "reload");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "debugmap");
+                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "chunkmap");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "start (land)");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "startall");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "stop (land) " + ChatColor.GRAY + "<cancel/win/lose>");
@@ -164,7 +170,15 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
             return;
         }
 
-        if (api.startRaidAll(null)) {
+        boolean result;
+        try {
+            result = api.startRaidAll(null);
+        } catch (IllegalArgumentException e) {
+            api.getPluginLang().send(sender, Lang.COMMAND_START_ALL_RAID_UNKNOWN_SPAWN);
+            return;
+        }
+
+        if (result) {
             api.getPluginLang().send(sender, Lang.COMMAND_START_ALL_RAID_DONE, api.getCurrentRaids().size());
         } else {
             api.getPluginLang().send(sender, Lang.COMMAND_START_ALL_RAID_UNABLE_START);
@@ -193,6 +207,40 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
         api.getPluginLang().send(sender, Lang.COMMAND_STOP_ALL_RAID_DONE, result.name(), count);
     }
 
+    private void executeGiveChunkMap(Player player) {
+        PlayerInventory inv = player.getInventory();
+
+        MapView view;
+        ItemStack itemStack;
+        MapMeta itemMeta;
+        ItemStack mainHandItem = inv.getItemInMainHand();
+
+        if (Material.FILLED_MAP.equals(mainHandItem.getType())) {
+            // override map
+            itemStack = mainHandItem;
+            view = ((MapMeta) mainHandItem.getItemMeta()).getMapView();
+
+        } else {
+            itemStack = new ItemStack(Material.FILLED_MAP);
+            view = Bukkit.createMap(player.getWorld());
+        }
+        itemMeta = (MapMeta) itemStack.getItemMeta();
+
+        view.setScale(MapView.Scale.NORMAL);
+        view.getRenderers().forEach(view::removeRenderer);
+        view.addRenderer(api.getChunkViewRenderer());
+
+        itemMeta.setMapView(view);
+        itemStack.setItemMeta(itemMeta);
+
+        if (!itemStack.equals(mainHandItem)) {
+            inv.setItemInMainHand(itemStack);
+            inv.addItem(mainHandItem);
+        }
+        player.updateInventory();
+        api.updateChunkViewRendererChunks();
+    }
+
     private void executeReloadCommand(CommandSender sender) {
         api.getPluginConfig().load();
         api.getPluginLang().load();
@@ -209,16 +257,16 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (1 == args.length) {
-            return Stream.of("status", "reload", "debugmap", "start", "startall", "stop", "stopall")
+            return Stream.of("status", "reload", "chunkmap", "start", "startall", "stop", "stopall")
                     .filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
         } else if (2 == args.length && args[0].equalsIgnoreCase("start")) {
-            return lands.getLands().stream()
+            return api.getLands().stream()
                     .map(Land::getName)
                     .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();
         } else if (2 == args.length && args[0].equalsIgnoreCase("stop")) {
-            return lands.getLands().stream()
+            return api.getLands().stream()
                     .filter(api::isRunningRaid)
                     .map(Land::getName)
                     .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))

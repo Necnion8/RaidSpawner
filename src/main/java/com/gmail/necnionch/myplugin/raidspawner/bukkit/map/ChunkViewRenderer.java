@@ -1,10 +1,9 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.map;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerAPI;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.LandChunkFindResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
-import com.google.common.collect.Multimap;
-import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -12,26 +11,27 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.map.*;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
 @SuppressWarnings("deprecation")
 public class ChunkViewRenderer extends MapRenderer {
     public static final Set<ChunkViewRenderer> RENDERERS = new HashSet<>();
-
-    private final RaidSpawnerPlugin plugin;
+    private static final Map<World, LandChunkFindResult> findResults = new HashMap<>();
+    private static final Map<World, Map<String, Land>> chunkLands = new HashMap<>();
     private final MinecraftFont font = MinecraftFont.Font;
-    private final World world;
     private final Map<Land, RaidSpawner> raids;
     private int chunkScale = 3;
 
-    private final Map<String, Land> landChunks = new HashMap<>();
-
-    public ChunkViewRenderer(RaidSpawnerPlugin plugin, World world) {
-        this.plugin = plugin;
-        this.world = world;
-        this.raids = plugin.getCurrentRaids();
+    public ChunkViewRenderer(RaidSpawnerAPI api) {
+        this.raids = api.getCurrentRaids();
         RENDERERS.add(this);
+    }
+
+    public static void clearAll() {
+        RENDERERS.clear();
+        setChunksAndLands(null, null);
     }
 
     public int getChunkScale() {
@@ -42,31 +42,40 @@ public class ChunkViewRenderer extends MapRenderer {
         this.chunkScale = scale;
     }
 
-    public void updateLandsList() {
-        landChunks.clear();
-        plugin.getLandAPI().getLands().forEach(land -> Optional.ofNullable(land.getContainer(world))
-                .map(Container::getChunks)
-                .map(Collection::stream)
-                .ifPresent(s -> s.forEach(c -> landChunks.put(c.getX() + "," + c.getZ(), land))));
-    }
-
-    @Override
-    public void initialize(@NotNull MapView map) {
-        updateLandsList();
+    public static void setChunksAndLands(@Nullable Iterable<LandChunkFindResult> results, @Nullable Collection<Land> lands) {
+        findResults.clear();
+        if (results != null) {
+            results.forEach(result -> findResults.put(result.world(), result));
+        }
+        chunkLands.clear();
+        if (lands != null) {
+            lands.stream()
+                    .flatMap(land -> land.getContainers().stream())
+                    .forEach(container -> {
+                        Map<String, Land> chunksLand = chunkLands.computeIfAbsent(container.getWorld().getWorld(), w -> new HashMap<>());
+                        container.getChunks().stream().map(c -> c.getX() + "," + c.getZ()).forEach(k -> chunksLand.put(k, container.getLand()));
+                    });
+        }
     }
 
     @Override
     public void render(@NotNull MapView map, @NotNull MapCanvas canvas, @NotNull Player player) {
-        if (!plugin.isEnabled()) {
+        if (!RENDERERS.contains(this)) {
             renderDisabled(canvas);
-            RENDERERS.remove(this);
             return;
         }
 
         Location location = player.getLocation();
-        renderCursor(canvas, location);
-        renderChunks(canvas, location);
-        renderLandNames(canvas, location);
+        World world = player.getWorld();
+
+        renderCursor(canvas, world, location);
+        renderChunks(canvas, findResults.get(world), location);
+
+        Map<String, Land> lands;
+        if ((lands = chunkLands.get(world)) != null) {
+            renderLandNames(canvas, lands, location);
+        }
+
         renderTexts(canvas, location);
     }
 
@@ -79,7 +88,7 @@ public class ChunkViewRenderer extends MapRenderer {
         canvas.drawText(0, 0, font, colored(MapPalette.RED, "Plugin disabled"));
     }
 
-    private void renderCursor(MapCanvas canvas, Location location) {
+    private void renderCursor(MapCanvas canvas, World world, Location location) {
         MapCursorCollection cursors = new MapCursorCollection();
 
         double centerX = location.getX();
@@ -89,27 +98,25 @@ public class ChunkViewRenderer extends MapRenderer {
                 .filter(Enemy::isAlive)
                 .map(Enemy::getEntityLocation)
                 .filter(Objects::nonNull)
+                .filter(loc -> world.equals(loc.getWorld()))
                 .forEach(pos -> {
-//                    int x = (int) Math.max(-128, Math.min((pos.getX() - centerX) / (chunkScale * 16), 127));
-                    int x = (int) Math.max(-128, Math.min((pos.getX() - centerX) / (128f / 16 / chunkScale), 127));  // TODO: 微妙にズレてる
-                    int z = (int) Math.max(-128, Math.min((pos.getZ() - centerZ) / (128f / 16 / chunkScale), 127));
-
+                    int x = (int) Math.floor((pos.getX() - centerX) / (chunkScale / 2f));
+                    int z = (int) Math.floor((pos.getZ() - centerZ) / (chunkScale / 2f));
                     cursors.addCursor(new MapCursor(
-                            (byte) x,
-                            (byte) z,
+                            (byte) Math.max(-128, Math.min(x, 127)),
+                            (byte) Math.max(-128, Math.min(z, 127)),
                             (byte) getMapCursorDirection(pos.getYaw()),
                             MapCursor.Type.RED_POINTER,
                             true
                     ));
+
                 });
 
         cursors.addCursor(new MapCursor((byte) 1, (byte) 1, (byte) getMapCursorDirection(location.getYaw()), MapCursor.Type.WHITE_POINTER, true));
         canvas.setCursors(cursors);
     }
 
-    private void renderChunks(MapCanvas canvas, Location location) {
-        Multimap<String, RaidSpawner.Chunk> spawnChunks = plugin.getLastFindSpawnChunksResult();
-
+    private void renderChunks(MapCanvas canvas, @Nullable LandChunkFindResult result, Location location) {
         for (int x = 0; x < 128; x++) {
             for (int y = 0; y < 128; y++) {
                 int posX = location.getBlockX() + (x - 64) * chunkScale;
@@ -118,20 +125,20 @@ public class ChunkViewRenderer extends MapRenderer {
                 int chunkZ = (int) Math.floor(posZ / 16f);
 
                 boolean highlight = Math.floorMod(chunkX, 2) == Math.floorMod(chunkZ, 2);
-                byte colorValue;
-                if (landChunks.containsKey(chunkX + "," + chunkZ)) {
-                    colorValue = highlight ? MapPalette.LIGHT_GREEN : MapPalette.DARK_GREEN;
-                } else if (spawnChunks != null && spawnChunks.values().stream().anyMatch(c -> world.equals(c.world()) && c.x() == chunkX && c.z() == chunkZ)) {
-                    colorValue = highlight ? MapPalette.matchColor(141, 127, 199) : MapPalette.matchColor(80, 44, 230);
-                } else {
-                    colorValue = highlight ? MapPalette.GRAY_1 : MapPalette.GRAY_2;
+                byte colorValue = highlight ? MapPalette.GRAY_1 : MapPalette.GRAY_2;
+                if (result != null) {
+                    if (result.landChunks().stream().anyMatch(c -> c.getX() == chunkX && c.getZ() == chunkZ)) {
+                        colorValue = highlight ? MapPalette.LIGHT_GREEN : MapPalette.DARK_GREEN;
+                    } else if (result.raidChunks().stream().anyMatch(c -> c.x() == chunkX && c.z() == chunkZ)) {
+                        colorValue = highlight ? MapPalette.matchColor(141, 127, 199) : MapPalette.matchColor(80, 44, 230);
+                    }
                 }
                 canvas.setPixel(x, y, colorValue);
             }
         }
     }
 
-    private void renderLandNames(MapCanvas canvas, Location location) {
+    private void renderLandNames(MapCanvas canvas, Map<String, Land> chunkLands, Location location) {
         Set<Land> notifiedLands = new HashSet<>();
         for (int x = 0; x < 128; x++) {
             for (int y = 0; y < 128; y++) {
@@ -140,7 +147,7 @@ public class ChunkViewRenderer extends MapRenderer {
                 int chunkX = (int) Math.floor(posX / 16f);
                 int chunkZ = (int) Math.floor(posZ / 16f);
 
-                Land land = landChunks.get(chunkX + "," + chunkZ);
+                Land land = chunkLands.get(chunkX + "," + chunkZ);
                 if (land != null && !notifiedLands.contains(land)) {
                     canvas.drawText(x, y, font, colored(MapPalette.LIGHT_BROWN, land.getName()));
                     notifiedLands.add(land);
