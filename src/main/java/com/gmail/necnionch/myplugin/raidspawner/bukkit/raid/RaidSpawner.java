@@ -396,10 +396,12 @@ public class RaidSpawner {
         if (title.isEmpty() && subtitle.isEmpty())
             return;
 
-        for (Player player : players) {
-            player.resetTitle();
-            player.sendTitle(title, subtitle, 10, 20 * 4, 10);
-        }
+        plugin.getServer().getScheduler().runTask(plugin, () -> {  // Landsのタイトルを上書きする
+            for (Player player : players) {
+                player.resetTitle();
+                player.sendTitle(title, subtitle, 10, 20 * 4, 10);
+            }
+        });
     }
 
 

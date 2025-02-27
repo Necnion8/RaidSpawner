@@ -2,6 +2,7 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.Lang;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
@@ -54,15 +55,15 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
         try {
             if (1 <= args.length && "status".equalsIgnoreCase(args[0])) {
                 executeStatusCommand(sender);
-            } else if (1 <= args.length && "start-all".equalsIgnoreCase(args[0])) {
+            } else if (1 <= args.length && "startall".equalsIgnoreCase(args[0])) {
                 executeStartAllCommand(sender);
             } else if (1 <= args.length && "start".equalsIgnoreCase(args[0])) {
-                Land land = getLandOrError(2, args);
+                Land land = getLandOrError(1, args);
                 executeStartCommand(sender, land);
-            } else if (1 <= args.length && "stop-all".equalsIgnoreCase(args[0])) {
+            } else if (1 <= args.length && "stopall".equalsIgnoreCase(args[0])) {
                 executeStopAllCommand(sender, parseEndResultOrError(2 <= args.length ? args[1] : "cancel"));
             } else if (1 <= args.length && "stop".equalsIgnoreCase(args[0])) {
-                Land land = getLandOrError(2, args);
+                Land land = getLandOrError(1, args);
                 executeStopCommand(sender, land, parseEndResultOrError(3 <= args.length ? args[2] : "cancel"));
             } else if (1 <= args.length && "debugmap".equalsIgnoreCase(args[0])) {
                 sender.sendMessage("Not implemented");  // TODO
@@ -74,9 +75,9 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "reload");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "debugmap");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "start (land)");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "start-all");
+                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "startall");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "stop (land) " + ChatColor.GRAY + "<cancel/win/lose>");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "stop-all " + ChatColor.GRAY + "<cancel/win/lose>");
+                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "stopall " + ChatColor.GRAY + "<cancel/win/lose>");
             }
 
         } catch (ArgumentError e) {
@@ -100,21 +101,26 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
             for (RaidSpawner raid : raids) {
                 if (loses.contains(raid))
                     continue;
-                sender.sendMessage(ChatColor.DARK_GREEN + "Alive Land: " + ChatColor.WHITE + raid.getLand().getName() + ChatColor.GRAY + "  (Wave " + (raid.getWave() + 1) + "/" + raid.getMaxWaves() + ")");
+
+                List<Enemy> enemies = raid.currentEnemies();
+                sender.sendMessage(ChatColor.DARK_GREEN + "Alive Land: " +
+                        ChatColor.WHITE + raid.getLand().getName() +
+                        ChatColor.GRAY + "  (Wave " + ChatColor.WHITE + raid.getWave() + "/" + raid.getMaxWaves() +
+                        ChatColor.GRAY + ", enemies: " + ChatColor.WHITE + enemies.stream().filter(Enemy::isAlive).count() + "/" + enemies.size() +
+                        ChatColor.GRAY + ", players: " + ChatColor.WHITE + raid.getLand().getOnlinePlayers().size() + ChatColor.GRAY + ")");
             }
 
         } else if (api.isStandbyAutoStart()) {
-            sender.sendMessage(ChatColor.GRAY + "=== " + ChatColor.GOLD + "Status: " + ChatColor.DARK_GREEN + "AUTO START SCHEDULED");
+            sender.sendMessage(ChatColor.GRAY + "=== " + ChatColor.GOLD + "Status: " + ChatColor.AQUA + "AUTO START SCHEDULED");
             for (ConditionWrapper cond : api.getAutoStartConditions()) {
                 float remaining = Optional.ofNullable(cond.getCondition().getRemainingTimePreview())
                         .map(v -> Math.round((float) v / 1000 / 6) / 10f)
                         .orElse(-1f);
-                sender.sendMessage("- " + ChatColor.GRAY + cond.getType() + ChatColor.WHITE + "remaining " + remaining + "m " + (cond.isActivated() ? ChatColor.YELLOW + "(triggered)" : ""));
+                sender.sendMessage("- " + ChatColor.GRAY + cond.getType() + ChatColor.WHITE + " remaining " + remaining + "m " + (cond.isActivated() ? ChatColor.YELLOW + "(triggered)" : ""));
             }
 
         } else {
             sender.sendMessage(ChatColor.GRAY + "=== " + ChatColor.GOLD + "Status: " + ChatColor.GRAY + "NOTHING");
-            sender.sendMessage("");
         }
 
         Multimap<World, Chunk> tickets = api.getChunkTickets();
@@ -190,6 +196,11 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     private void executeReloadCommand(CommandSender sender) {
         api.getPluginConfig().load();
         api.getPluginLang().load();
+
+        if (!api.isRunningRaid()) {
+            ((RaidSpawnerPlugin) api).startStartConditions();
+        }
+
         api.getPluginLang().send(sender, Lang.COMMAND_RELOAD_DONE);
     }
 
@@ -198,15 +209,21 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (1 == args.length) {
-            return Stream.of("status", "reload", "debugmap", "start", "start-all", "stop", "stop-all")
+            return Stream.of("status", "reload", "debugmap", "start", "startall", "stop", "stopall")
                     .filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
-        } else if (2 == args.length && (args[0].equalsIgnoreCase("start") || args[0].equalsIgnoreCase("stop"))) {
+        } else if (2 == args.length && args[0].equalsIgnoreCase("start")) {
             return lands.getLands().stream()
                     .map(Land::getName)
                     .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();
-        } else if ((3 == args.length && args[0].equalsIgnoreCase("stop")) || (2 == args.length && args[0].equalsIgnoreCase("stop-all"))) {
+        } else if (2 == args.length && args[0].equalsIgnoreCase("stop")) {
+            return lands.getLands().stream()
+                    .filter(api::isRunningRaid)
+                    .map(Land::getName)
+                    .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
+                    .toList();
+        } else if ((3 == args.length && args[0].equalsIgnoreCase("stop")) || (2 == args.length && args[0].equalsIgnoreCase("stopall"))) {
             return Stream.of(RaidEndResult.values())
                     .map(Enum::name)
                     .filter(s -> s.startsWith(args[args.length - 1].toUpperCase(Locale.ROOT)))

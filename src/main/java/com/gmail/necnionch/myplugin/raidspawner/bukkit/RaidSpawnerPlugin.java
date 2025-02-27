@@ -96,7 +96,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
         if (pluginConfig.load()) {
             enableDebug = pluginConfig.isEnableDebug();
-            createStartConditions();
             startStartConditions();
         } else {
             // show after server startup
@@ -468,8 +467,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
     // event start condition
 
-    public void createStartConditions() {
-        clearStartConditions();
+    public void initStartConditions() {
+        startConditions.clear();
         for (ConfigurationSection condConfig : pluginConfig.getStartConditions()) {
             String type = condConfig.getString("type");
             Condition condition;
@@ -488,6 +487,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
     public void startStartConditions() {
         clearStartConditions();
+        initStartConditions();
 
         List<Long> delays = startConditions.stream()
                 .map(ConditionWrapper::start)
@@ -550,7 +550,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
     // raids
 
-
     @Override
     public boolean isRunningRaid() {
         return raids.values().stream().anyMatch(RaidSpawner::isRunning);
@@ -590,7 +589,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             gameEndTimer = null;
         }
 
-        raids.values().forEach(r -> r.clear(Optional.ofNullable(result).orElse(RaidEndResult.CANCEL), reason));
+        new HashSet<>(raids.values()).forEach(r -> r.clear(result != null ? result : RaidEndResult.CANCEL, reason));
         raids.clear();
         getLogger().info("Raid Spawner Ended");
     }
@@ -828,8 +827,10 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 }
             }
 
-            getLogger().info("Auto start conditions restarting");
-            startStartConditions();
+            getServer().getScheduler().runTask(this, () -> {
+                getLogger().info("Auto start conditions restarting");
+                startStartConditions();
+            });
         }
     }
 
