@@ -99,18 +99,12 @@ public class ChunkViewRenderer extends MapRenderer {
                 .map(Enemy::getEntityLocation)
                 .filter(Objects::nonNull)
                 .filter(loc -> world.equals(loc.getWorld()))
-                .forEach(pos -> {
-                    int x = (int) Math.floor((pos.getX() - centerX) / (chunkScale / 2f));
-                    int z = (int) Math.floor((pos.getZ() - centerZ) / (chunkScale / 2f));
-                    cursors.addCursor(new MapCursor(
-                            (byte) Math.max(-128, Math.min(x, 127)),
-                            (byte) Math.max(-128, Math.min(z, 127)),
-                            (byte) getMapCursorDirection(pos.getYaw()),
-                            MapCursor.Type.RED_POINTER,
-                            true
-                    ));
-
-                });
+                .forEach(pos -> cursors.addCursor(new MapCursor(
+                        (byte) Math.max(-128, Math.min(Math.floor((pos.getX() - centerX) / (chunkScale / 2f)), 127)),
+                        (byte) Math.max(-128, Math.min(Math.floor((pos.getZ() - centerZ) / (chunkScale / 2f)), 127)),
+                        (byte) getMapCursorDirection(pos.getYaw()),
+                        MapCursor.Type.RED_POINTER,
+                        true)));
 
         cursors.addCursor(new MapCursor((byte) 1, (byte) 1, (byte) getMapCursorDirection(location.getYaw()), MapCursor.Type.WHITE_POINTER, true));
         canvas.setCursors(cursors);

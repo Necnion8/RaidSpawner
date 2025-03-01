@@ -286,14 +286,11 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             }
         }
 
-//        lastLandChunkFindResult = LinkedHashMultimap.create();
         for (Iterator<LandChunkFindResult> it = results.iterator(); it.hasNext(); ) {
             List<RaidSpawner.Chunk> raidChunks = it.next().raidChunks();
             raidChunks.removeIf(c -> safeChunks.contains(c.toString()));
             if (raidChunks.isEmpty()) {
                 it.remove();
-//            } else {
-//                raidChunks.forEach(c -> lastLandChunkFindResult.put(c.toString(), c));
             }
         }
 
