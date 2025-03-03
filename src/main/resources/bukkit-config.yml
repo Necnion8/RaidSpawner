@@ -41,8 +41,8 @@ raid:
       enemies:
         - source: mythicmobs
           type: MOB_TYPE
-          priority: 10
           level: 1
+          priority: 10
 
 # 成功報酬設定
 event-win-rewards:

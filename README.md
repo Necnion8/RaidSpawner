@@ -36,21 +36,54 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
 
 ### アクション一覧
 - for Player
-  - `command` - コマンド実行
-  - `execute-command` - プレイヤーに対してコマンド実行
+  - `command` - コマンド実行<sup>※1</sup>
+  - `execute-command` - プレイヤーに対してコマンド実行<sup>※1</sup>
   - `add-money` - 所持金の追加
   - `remove-money` - 所持金の削除
 - for Land
-  - `command` - コマンド実行
+  - `command` - コマンド実行<sup>※1</sup>
   - `remove-chunk` - Landチャンクの削除
     - `value` - チャンク数 (int)
     - `keep-land` - チャンクを全て失ったLandを削除しない (bool, optional)
+
+<sup>※1</sup> 文字列またはリストで、１つまたは複数のコマンドを指定できます。
+
+### 敵モブ一覧
+- `test` - テストエンティティ。ダイヤ剣を持っていて、発光しています。
+  ```yml
+  - source: test
+  ```
+  
+- `mythicmobs` - MythicMobsのモブ。プラグインが必要です。
+  ```yml
+  - source: mythicmobs
+    type: SkeletalKnight
+    level: 2  # 省略可: デフォルト 1
+  ```
+
+- `vanilla` - バニラのシンプルなモブ
+  ```yml
+  - source: vanilla
+    type: zombie  # エンティティタイプ
+    health: 20  # 省略可: デフォルト 20
+    effects:  # 付与するポーション効果
+      speed:  # ポーションタイプ
+        duration: 1200  # 単位: tick (= 1分)
+        level: 1  # 効果レベル。省略可: デフォルト 1
+      strength:
+        duration: 1200
+        level: 2
+  ```
+  [エンティティタイプ一覧](https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/entity/EntityType.html) | [ポーション効果一覧](https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/potion/PotionEffectType.html)
 
 ### アクション設定例
 ```yml
 actions:
   player:  # 省略可
     execute-command: "say Hi"
+    command:
+      - "title %uuid% times 10 40 10"
+      - 'title %uuid% title "Mission Completed!"'
     add-money: 1000
   land:  # 省略可
     remove-chunk:
@@ -108,8 +141,8 @@ actions:
 >       enemies:
 >         - source: mythicmobs
 >           type: MOB_TYPE
->           priority: 10
 >           level: 1
+>           priority: 10
 >
 > # 成功報酬設定
 > event-win-rewards:

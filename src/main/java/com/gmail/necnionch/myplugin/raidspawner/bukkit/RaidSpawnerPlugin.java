@@ -16,6 +16,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.map.ChunkViewRenderer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.VanillaEnemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.LandChunkFindResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
@@ -351,6 +352,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
         Stream.of(
                 new TestEnemy.Provider(),
+                new VanillaEnemy.Provider(),
                 MythicEnemy.Provider.createAndHookMythicMobs(this)
         )
                 .filter(Objects::nonNull)
