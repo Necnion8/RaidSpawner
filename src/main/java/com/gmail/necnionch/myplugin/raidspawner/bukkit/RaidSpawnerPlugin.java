@@ -13,10 +13,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.Lang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.RaidSpawnerLang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.map.ChunkViewRenderer;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.EnemyProvider;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.MythicEnemy;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.TestEnemy;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.VanillaEnemy;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.LandChunkFindResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
@@ -39,6 +36,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntityTransformEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -871,7 +870,27 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
             spawner.onDeathEntity();
         }
+    }
 
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onExplodeEntity(EntityExplodeEvent event) {
+        if (event.getEntity() instanceof LivingEntity) {
+            for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+                spawner.onDeathEntity();
+            }
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onTransformEntity(EntityTransformEvent event) {
+        for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+            for (Enemy enemy : spawner.currentEnemies()) {
+                if (event.getEntity().equals(enemy.getEntity())) {
+                    event.setCancelled(true);
+                    break;
+                }
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

@@ -91,7 +91,7 @@ public class VanillaEnemy implements Enemy {
             }
             if (type.getEntityClass() == null) {
                 throw new ConfigurationError("Unknown entity class: " + config.getString("type"));
-            } else if (!type.getEntityClass().isAssignableFrom(LivingEntity.class)) {
+            } else if (!LivingEntity.class.isAssignableFrom(type.getEntityClass())) {
                 throw new ConfigurationError("Not living entity: " + type.name());
             }
 
