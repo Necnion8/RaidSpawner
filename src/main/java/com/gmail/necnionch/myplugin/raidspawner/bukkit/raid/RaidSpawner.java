@@ -458,6 +458,7 @@ public class RaidSpawner {
 
     public record Rewards(
             List<ConditionWrapper> rewardConditions,
+            List<Action> startActions,
             List<Action> noConditionWinActions,
             List<Action> loseActions
     ) {}

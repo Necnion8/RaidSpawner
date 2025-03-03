@@ -613,6 +613,11 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 }
             }
 
+            // 開始アクションの実行
+            for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+                executeActions(spawner, spawner.getRewards().startActions());
+            }
+
         });
 
         // game end
@@ -649,6 +654,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             conditions.add(condition);
         }
 
+        List<Action> startActions = createActions("start", pluginConfig.getStartActions());
         List<Action> winElseActions = createActions("win-else", pluginConfig.getWinRewardElseActions());
         List<Action> loseActions = createActions("lose", pluginConfig.getLoseRewardActions());
 
@@ -658,7 +664,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 landChunkFindResult.world(),
                 landChunkFindResult.raidChunks(),
                 landChunkFindResult.landChunks(),
-                new RaidSpawner.Rewards(conditions, winElseActions, loseActions)
+                new RaidSpawner.Rewards(conditions, startActions, winElseActions, loseActions)
         );
     }
 
@@ -726,7 +732,10 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 return null;
             }
         }
+        return executeActions(spawner, actions);
+    }
 
+    public Map<Class<Action>, Boolean> executeActions(RaidSpawner spawner, List<Action> actions) {
         Map<Class<Action>, Boolean> rewardResults = new HashMap<>();
         for (Action action : actions) {
             logDebug(() -> "reward: " + action.getProvider().getType() + " (" + action.getClass().getSimpleName() + ")");
@@ -753,7 +762,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             //noinspection unchecked
             rewardResults.put((Class<Action>) action.getClass(), rewardResult);
         }
-
         return rewardResults;
     }
 

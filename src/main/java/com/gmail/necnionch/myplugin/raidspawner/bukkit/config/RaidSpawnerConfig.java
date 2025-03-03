@@ -155,6 +155,10 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 .orElseGet(ArrayList::new);
     }
 
+    public Actions getStartActions() {
+        return getActions(config.getConfigurationSection("event-start.actions"));
+    }
+
     public Actions getWinRewardElseActions() {
         return getActions(config.getConfigurationSection("event-win-rewards.condition-else.actions"));
     }
