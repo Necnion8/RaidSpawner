@@ -35,6 +35,10 @@ public class RaidSpawnerUtil {
         return Bukkit.getScheduler().runTaskLater(getPlugin(), task, delay);
     }
 
+    public static BukkitTask runTaskTimer(Runnable task, long period) {
+        return Bukkit.getScheduler().runTaskTimer(getPlugin(), task, 0, period);
+    }
+
     public static Logger getLogger() {
         if (log == null) {
             log = getPlugin().getLogger();

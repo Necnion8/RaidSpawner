@@ -885,25 +885,35 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
     @EventHandler
     public void onJoinPlayer(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+
         String groupName = pluginConfig.getRaidSetting().luckPermsGroup();
-        if (groupName != null && RaidSpawnerUtil.isRaidPlayer(event.getPlayer())) {
+        if (groupName != null && RaidSpawnerUtil.isRaidPlayer(player)) {
             PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
                 try {
-                    perms.addPermissionGroup(event.getPlayer(), groupName);
+                    perms.addPermissionGroup(player, groupName);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
             });
         }
+
+        for (RaidSpawner spawner : raids.values()) {
+            if (spawner.isRunning() && spawner.getBossBar() != null && spawner.getLand().isTrusted(player.getUniqueId())) {
+                spawner.getBossBar().addPlayer(player);
+            }
+        }
     }
 
     @EventHandler
     public void onQuitPlayer(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+
         String groupName = pluginConfig.getRaidSetting().luckPermsGroup();
         if (groupName != null) {
             PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
                 try {
-                    perms.removePermissionGroup(event.getPlayer(), groupName);
+                    perms.removePermissionGroup(player, groupName);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
@@ -911,6 +921,10 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         }
 
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+            if (spawner.getBossBar() != null) {
+                spawner.getBossBar().removePlayer(player);
+            }
+
             Land land = spawner.getLand();
             if (land.getOnlinePlayers().isEmpty()) {
                 logDebug(() -> "No online players | land: " + spawner.getLand().getName());

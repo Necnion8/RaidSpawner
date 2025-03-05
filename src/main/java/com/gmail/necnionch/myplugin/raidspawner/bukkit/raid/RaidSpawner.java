@@ -4,6 +4,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerAPI;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.BossBarSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.EventStart;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSetting;
@@ -19,11 +20,9 @@ import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
 import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Land;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.boss.KeyedBossBar;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.world.EntitiesUnloadEvent;
@@ -51,6 +50,8 @@ public class RaidSpawner {
     private boolean running;
     private int waves;
     private long endTime = -1;  // 負の値で開始時刻; 正の値で終了にかかった時間(ms)
+    private @Nullable KeyedBossBar bossBar;
+    private @Nullable BukkitTask gameTickTask;
     private @Nullable BukkitTask currentWaveMaxTimer;
     private final List<Enemy> currentEnemies = new ArrayList<>();
     private @Nullable RaidEndResult endResult;
@@ -85,6 +86,10 @@ public class RaidSpawner {
 
     public World getWorld() {
         return world;
+    }
+
+    public @Nullable KeyedBossBar getBossBar() {
+        return bossBar;
     }
 
     public boolean isRunning() {
@@ -173,6 +178,8 @@ public class RaidSpawner {
         Collection<Player> players = land.getOnlinePlayers();
         api.getPluginLang().send(players, Lang.START_MESSAGE);
 
+        Optional.ofNullable(createAndInitBossBar()).ifPresent(b -> players.forEach(b::addPlayer));
+
         EventStart.StartNotify notifyConfig = api.getPluginConfig().getStartNotify();
         if (notifyConfig.teleportToLand()) {
             teleportToSpawn(players);
@@ -193,6 +200,30 @@ public class RaidSpawner {
         }
 
         tryNextWave();
+
+        if (gameTickTask != null) {
+            gameTickTask.cancel();
+        }
+        gameTickTask = RaidSpawnerUtil.runTaskTimer(this::tick, 0);
+    }
+
+    private @Nullable KeyedBossBar createAndInitBossBar() {
+        removeBossBar();
+        BossBarSetting setting = this.setting.bossBar();
+        if (setting.enable()) {
+            NamespacedKey bossBarKey = new NamespacedKey(RaidSpawnerUtil.getPlugin(), "raid_" + UUID.randomUUID().toString().replace('-', ' '));
+            bossBar = Bukkit.createBossBar(bossBarKey, null, setting.color(), setting.style());
+            return bossBar;
+        }
+        return null;
+    }
+
+    private void removeBossBar() {
+        if (bossBar != null) {
+            bossBar.setVisible(false);
+            bossBar.removeAll();
+            Bukkit.removeBossBar(bossBar.getKey());
+        }
     }
 
     public void clear(RaidEndResult result, @Nullable RaidEndReason reason) {
@@ -202,10 +233,17 @@ public class RaidSpawner {
             endTime = System.currentTimeMillis() + endTime;
         }
 
+        if (gameTickTask != null) {
+            gameTickTask.cancel();
+            gameTickTask = null;
+        }
+
         if (currentWaveMaxTimer != null) {
             currentWaveMaxTimer.cancel();
             currentWaveMaxTimer = null;
         }
+
+        removeBossBar();
 
         Map<Class<Action>, Boolean> actionResults = null;
         try {
@@ -439,6 +477,38 @@ public class RaidSpawner {
     private void onWaveMaxTimer() {
         // ウェーブタイマーが経過したら次のウェーブに移動する
         tryNextWave(false);
+    }
+
+    private void tick() {
+        if (bossBar != null) {
+            // progress
+            long maxTime = setting.eventTimeMinutes() * 60L * 1000;
+            double progress;
+            if (maxTime == 0) {
+                progress = 0;
+            } else if (endTime < 0) {
+                long gameTime = System.currentTimeMillis() + endTime;
+                progress = (double) gameTime / maxTime;
+            } else {
+                progress = (double) endTime / maxTime;
+            }
+            bossBar.setProgress(1 - progress);
+
+            // title
+            String text = ChatColor.translateAlternateColorCodes('&', setting.bossBar().text())
+                    .replaceAll("%wave%", String.valueOf(waves))
+                    .replaceAll("%max_waves", String.valueOf(getMaxWaves()))
+                    .replaceAll("%enemies%", String.valueOf(currentEnemies.stream().filter(Enemy::isAlive).count()))
+                    .replaceAll("%total_enemies%", String.valueOf(currentEnemies.size()))
+                    .replaceAll("%tickets%", String.valueOf(0));  // TODO: replace ticket value
+            bossBar.setTitle(text);
+
+            // show
+            if (!bossBar.isVisible()) {
+                bossBar.setVisible(true);
+            }
+
+        }
     }
 
 

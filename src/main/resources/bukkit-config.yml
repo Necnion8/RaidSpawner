@@ -33,6 +33,15 @@ raid:
   waves: 5
   # ウェーブの最大時間 (現ウェーブの敵を全て倒すか、この時間が経過すると次のウェーブに移行します。0 以下で無効)
   max-wave-time-minutes: 6
+  # ボスバー表示設定
+  bossbar:
+    # 襲撃イベントの進行状況をボスバーに表示します
+    enable: true
+    color: purple  # https://hub.spigotmc.org/javadocs/spigot/org/bukkit/boss/BarColor.html
+    style: solid  # https://hub.spigotmc.org/javadocs/spigot/org/bukkit/boss/BarStyle.html
+    # 仕様できる値: %wave%, %max_waves%, %enemies%, %total_enemies%, %tickets%
+    text: "&6Wave: %wave%/%max_waves% &f| &c敵残存数: %enemies% &f| &e残りチケット: %tickets%"
+
   # イベント中に付与する権限グループ
   luckperms-group: in-raidspawner
   # Landがあるワールド (nullでLandのスポーン設定されたワールドを選択)

@@ -4,6 +4,8 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.common.BukkitConfigDriver;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -34,6 +36,7 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 config.getInt("event-time-minutes", RaidSetting.DEFAULTS.eventTimeMinutes()),
                 config.getInt("waves", RaidSetting.DEFAULTS.maxWaves()),
                 config.getInt("max-wave-time-minutes", RaidSetting.DEFAULTS.maxWaveTimeMinutes()),
+                getBossBarSetting(config.getConfigurationSection("bossbar")),
                 config.getString("luckperms-group", RaidSetting.DEFAULTS.luckPermsGroup()),
                 config.getString("world", RaidSetting.DEFAULTS.world()),
                 config.getInt("mobs-distance-chunks", RaidSetting.DEFAULTS.mobsDistanceChunks()),
@@ -74,6 +77,31 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
     }
 
     //
+
+    private BossBarSetting getBossBarSetting(ConfigurationSection config) {
+        if (config == null)
+            return BossBarSetting.DEFAULTS;
+
+        String barColorName = config.getString("color", "purple").toUpperCase(Locale.ROOT);
+        BarColor barColor;
+        try {
+            barColor = BarColor.valueOf(barColorName);
+        } catch (IllegalArgumentException e) {
+            getLogger().warning("Unknown boss bar color: " + barColorName);
+            barColor = BarColor.PURPLE;
+        }
+        String barStyleName = config.getString("style", "solid").toUpperCase(Locale.ROOT);
+        BarStyle barStyle;
+        try {
+            barStyle = BarStyle.valueOf(barStyleName);
+        } catch (IllegalArgumentException e) {
+            getLogger().warning("Unknown boss bar style: " + barStyleName);
+            barStyle = BarStyle.SOLID;
+        }
+
+        String text = config.getString("text", BossBarSetting.DEFAULTS.text());
+        return new BossBarSetting(config.getBoolean("enable", true), barColor, barStyle, text);
+    }
 
     private Actions getActions(@Nullable ConfigurationSection config) {
         Actions.Item[] playerActions = Optional.ofNullable(config)
