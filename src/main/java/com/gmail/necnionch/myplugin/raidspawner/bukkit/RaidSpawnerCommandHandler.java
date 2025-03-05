@@ -66,6 +66,18 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
             } else if (1 <= args.length && "start".equalsIgnoreCase(args[0])) {
                 Land land = getLandOrError(1, args);
                 executeStartCommand(sender, land);
+            } else if (1 <= args.length && "nextwave".equalsIgnoreCase(args[0])) {
+                Land land = getLandOrError(1, args);
+                executeSetWaveCommand(sender, land, -1);
+            } else if (1 <= args.length && "setwave".equalsIgnoreCase(args[0])) {
+                Land land = getLandOrError(1, args);
+                int wave;
+                try {
+                    wave = Integer.parseInt(args[2]);
+                } catch (IndexOutOfBoundsException | NumberFormatException e) {
+                    throw new ArgumentError(Lang.COMMAND_SETWAVE_NOT_SPECIFIED_WAVE);
+                }
+                executeSetWaveCommand(sender, land, wave);
             } else if (1 <= args.length && "stopall".equalsIgnoreCase(args[0])) {
                 executeStopAllCommand(sender, parseEndResultOrError(2 <= args.length ? args[1] : "cancel"));
             } else if (1 <= args.length && "stop".equalsIgnoreCase(args[0])) {
@@ -84,6 +96,8 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "startall");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "stop (land) " + ChatColor.GRAY + "<cancel/win/lose>");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "stopall " + ChatColor.GRAY + "<cancel/win/lose>");
+                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "setwave (land) (wave)");
+                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "nextwave (land)");
             }
 
         } catch (ArgumentError e) {
@@ -185,6 +199,29 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
         }
     }
 
+    private void executeSetWaveCommand(CommandSender sender, Land land, int wave) {
+        RaidSpawner spawner = api.getCurrentRaids().get(land);
+        if (spawner == null || !spawner.isRunning()) {
+            api.getPluginLang().send(sender, Lang.COMMAND_SETWAVE_RAID_NOT_RUNNING);
+            return;
+        }
+
+        if (wave == -1) {
+            wave = spawner.getWave() + 1;
+            if (spawner.getMaxWaves() < wave) {
+                api.getPluginLang().send(sender, Lang.COMMAND_SETWAVE_ALREADY_MAX_WAVE, land.getName());
+                return;
+            }
+        }
+
+        if (0 < wave && wave <= spawner.getMaxWaves()) {
+            spawner.setWaves(wave);
+            api.getPluginLang().send(sender, Lang.COMMAND_SETWAVE_DONE, land.getName(), wave);
+        } else {
+            api.getPluginLang().send(sender, Lang.COMMAND_SETWAVE_INVALID_WAVE, spawner.getMaxWaves());
+        }
+    }
+
     private void executeStopCommand(CommandSender sender, Land land, RaidEndResult result) {
         RaidSpawner raid;
         if (!api.isRunningRaid(land) || (raid = api.getCurrentRaids().get(land)) == null) {
@@ -251,15 +288,16 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (1 == args.length) {
-            return Stream.of("status", "reload", "chunkmap", "start", "startall", "stop", "stopall")
+            return Stream.of("status", "reload", "chunkmap", "start", "startall", "stop", "stopall", "nextwave", "setwave")
                     .filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
         } else if (2 == args.length && args[0].equalsIgnoreCase("start")) {
             return api.getLands().stream()
+                    .filter(land -> !api.isRunningRaid(land))
                     .map(Land::getName)
                     .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();
-        } else if (2 == args.length && args[0].equalsIgnoreCase("stop")) {
+        } else if (2 == args.length && (args[0].equalsIgnoreCase("stop") || args[0].equalsIgnoreCase("nextwave") || args[0].equalsIgnoreCase("setwave"))) {
             return api.getLands().stream()
                     .filter(api::isRunningRaid)
                     .map(Land::getName)

@@ -16,6 +16,11 @@ public enum Lang {
     COMMAND_STOP_RAID_DONE("&6襲撃イベントを終了しました (result: %1$s)"),
     COMMAND_STOP_ALL_RAID_NOT_RUNNING("&c襲撃イベントは開始していません"),
     COMMAND_STOP_ALL_RAID_DONE("&6%2$s Land の襲撃イベントを終了しました (result: %1$s)"),
+    COMMAND_SETWAVE_RAID_NOT_RUNNING("&c襲撃イベントが開始していないか、既に終了しています"),
+    COMMAND_SETWAVE_INVALID_WAVE("&cウェーブ数は 1 から %1$s の数値で指定してください"),
+    COMMAND_SETWAVE_NOT_SPECIFIED_WAVE("&cウェーブ数を数値で指定してください"),
+    COMMAND_SETWAVE_ALREADY_MAX_WAVE("&c%1$s Land の襲撃イベントは最大ウェーブに達しています"),
+    COMMAND_SETWAVE_DONE("&6%1$s Land の襲撃ウェーブ数を %2$s に変更しました"),
     COMMAND_RELOAD_DONE("&6設定ファイルを再読み込みしました"),
 
     NON_PLAYER_SENDER_ERROR("&cプレイヤーのみ実行できます"),

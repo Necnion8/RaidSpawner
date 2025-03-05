@@ -149,6 +149,20 @@ public class RaidSpawner {
         }
     }
 
+    public void setWaves(int newWaves) {
+        if (!running)
+            throw new IllegalArgumentException("Not running raid");
+        if (newWaves <= 0 || getMaxWaves() < newWaves)
+            throw new IllegalArgumentException("Valid values are 1 to " + getMaxWaves());
+
+        if (newWaves == waves)
+            return;
+
+        RaidSpawnerUtil.d(() -> "setWave to " + newWaves);
+        waves = newWaves - 1;
+        tryNextWave();
+    }
+
     public void start() {
         running = true;
         endTime = -System.currentTimeMillis();
