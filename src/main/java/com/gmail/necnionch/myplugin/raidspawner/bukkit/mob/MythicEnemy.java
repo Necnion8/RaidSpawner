@@ -113,6 +113,13 @@ public class MythicEnemy implements Enemy {
         }
 
         @Override
+        public boolean isValid(ConfigurationSection config) throws ConfigurationError {
+            String type = config.getString("type");
+            mobs.getMythicMob(type).orElseThrow(() -> new ConfigurationError("Unknown MythicMob Type: " + type));
+            return true;
+        }
+
+        @Override
         public MythicEnemy create(ConfigurationSection config) throws ConfigurationError {
             String type = config.getString("type");
             double level = config.getDouble("level", 1);

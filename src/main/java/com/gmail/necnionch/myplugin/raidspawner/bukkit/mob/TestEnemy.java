@@ -89,6 +89,11 @@ public class TestEnemy implements Enemy {
         }
 
         @Override
+        public boolean isValid(ConfigurationSection config) {
+            return true;
+        }
+
+        @Override
         public TestEnemy create(ConfigurationSection config) throws ConfigurationError {
             return new TestEnemy(this);
         }

@@ -17,6 +17,8 @@ public abstract class EnemyProvider<E extends Enemy> {
 
     public abstract E create(ConfigurationSection config) throws ConfigurationError;
 
+    public abstract boolean isValid(ConfigurationSection config) throws ConfigurationError;
+
     public void load() {
     }
 

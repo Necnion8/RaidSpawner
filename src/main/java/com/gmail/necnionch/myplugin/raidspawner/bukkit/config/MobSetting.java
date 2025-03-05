@@ -47,12 +47,6 @@ public record MobSetting(
         public void setProvider(@Nullable EnemyProvider<?> provider) {
             this.provider = provider;
         }
-
-        public static Enemy serialize(ConfigurationSection config) {
-            String source = config.getString("source");
-            int priority = Math.max(1, config.getInt("priority"));
-            return new Enemy(source, priority, config, null);
-        }
     }
 
 }

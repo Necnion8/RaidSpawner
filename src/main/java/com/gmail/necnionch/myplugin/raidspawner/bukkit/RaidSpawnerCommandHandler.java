@@ -242,13 +242,7 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     }
 
     private void executeReloadCommand(CommandSender sender) {
-        api.getPluginConfig().load();
-        api.getPluginLang().load();
-
-        if (!api.isRunningRaid()) {
-            ((RaidSpawnerPlugin) api).startStartConditions();
-        }
-
+        ((RaidSpawnerPlugin) api).reloadPluginConfig();
         api.getPluginLang().send(sender, Lang.COMMAND_RELOAD_DONE);
     }
 

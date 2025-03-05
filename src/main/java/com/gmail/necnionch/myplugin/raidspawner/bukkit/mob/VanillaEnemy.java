@@ -82,6 +82,22 @@ public class VanillaEnemy implements Enemy {
         }
 
         @Override
+        public boolean isValid(ConfigurationSection config) throws ConfigurationError {
+            EntityType type;
+            try {
+                type = EntityType.valueOf(config.getString("type", "").toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new ConfigurationError(e);
+            }
+            if (type.getEntityClass() == null) {
+                throw new ConfigurationError("Unknown entity class: " + config.getString("type"));
+            } else if (!LivingEntity.class.isAssignableFrom(type.getEntityClass())) {
+                throw new ConfigurationError("Not living entity: " + type.name());
+            }
+            return true;
+        }
+
+        @Override
         public VanillaEnemy create(ConfigurationSection config) throws ConfigurationError {
             EntityType type;
             try {

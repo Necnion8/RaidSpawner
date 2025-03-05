@@ -4,6 +4,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.EventStart;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsAllEndEvent;
@@ -85,7 +86,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     @Override
     public void onEnable() {
         lands = LandsIntegration.of(this);
-        setupInternalProviders();
 
         if (pluginConfig.load()) {
             enableDebug = pluginConfig.isEnableDebug();
@@ -124,19 +124,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             }
         }
 
+        initializeProviders();
         getServer().getPluginManager().registerEvents(this, this);
-        getLogger().info("Active condition types: " + String.join(", ", conditionProviders.keySet()));
-        getLogger().info("Active land action types: " + String.join(", ", landActionProviders.keySet()));
-        getLogger().info("Active player action types: " + String.join(", ", playerActionProviders.keySet()));
-        getLogger().info("Active enemy types: " + String.join(", ", enemyProviders.keySet()));
-
-        enemyProviders.values().forEach(p -> {
-            try {
-                p.load();
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
-        });
     }
 
     @Override
@@ -324,6 +313,68 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             return true;
         }
         return false;
+    }
+
+    public void reloadPluginConfig() {
+        pluginConfig.load();
+        pluginLang.load();
+
+        enableDebug = pluginConfig.isEnableDebug();
+        initializeProviders();
+
+        if (!isRunningRaid()) {
+            startStartConditions();
+        }
+    }
+
+    public void initializeProviders() {
+        setupInternalProviders();
+
+        getLogger().info("Active condition types: " + String.join(", ", conditionProviders.keySet()));
+        getLogger().info("Active land action types: " + String.join(", ", landActionProviders.keySet()));
+        getLogger().info("Active player action types: " + String.join(", ", playerActionProviders.keySet()));
+        getLogger().info("Active enemy types: " + String.join(", ", enemyProviders.keySet()));
+
+        enemyProviders.values().forEach(p -> {
+            try {
+                p.load();
+            } catch (Throwable e) {
+                getLogger().log(Level.SEVERE, "Failed to init " + p.getSource() + " enemy provider", e);
+            }
+        });
+
+        // set enemy provider
+        int mobsIndex = -1;
+        for (MobSetting mobSetting : pluginConfig.getRaidSetting().mobs()) {
+            mobsIndex++;
+            int enemiesIndex = -1;
+            for (MobSetting.Enemy enemyItem : mobSetting.enemies()) {
+                enemiesIndex++;
+
+                EnemyProvider<?> provider = enemyProviders().get(enemyItem.getSource());
+                enemyItem.setProvider(provider);
+
+                if (provider == null) {
+                    getLogger().severe("Invalid enemy config: (mob=" + mobsIndex + ",enemy=" + enemiesIndex + ") " + enemyItem.getSource() + ": Unavailable provider");
+                    continue;
+                }
+
+                boolean valid;
+                try {
+                    valid = provider.isValid(enemyItem.getConfig());
+                } catch (EnemyProvider.ConfigurationError e) {
+                    getLogger().severe("Invalid enemy config: (mob=" + mobsIndex + ",enemy=" + enemiesIndex + ") " + provider.getSource() + ": " + e.getMessage());
+                    continue;
+                } catch (Throwable e) {
+                    getLogger().log(Level.SEVERE, "Error enemy config: (mob=" + mobsIndex + ",enemy=" + enemiesIndex + ") " + provider.getSource(), e);
+                    continue;
+                }
+
+                if (!valid) {
+                    getLogger().severe("Invalid enemy config: (mob=" + mobsIndex + ",enemy=" + enemiesIndex + ") " + provider.getSource());
+                }
+            }
+        }
     }
 
     public void setupInternalProviders() {

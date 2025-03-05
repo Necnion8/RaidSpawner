@@ -33,6 +33,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.logging.Level;
 
 public class RaidSpawner {
 
@@ -320,14 +321,9 @@ public class RaidSpawner {
 
         // get provider
         for (MobSetting.Enemy enemyItem : enemySettings) {
-            EnemyProvider<?> provider = enemyItem.getProvider();
-            if (provider == null) {
-                provider = plugin.enemyProviders().get(enemyItem.getSource());
-                enemyItem.setProvider(provider);
-            }
-
             RaidSpawnerUtil.d(() -> "- enemy: source " + enemyItem.getSource());
 
+            EnemyProvider<?> provider = enemyItem.getProvider();
             if (provider == null) {
                 RaidSpawnerUtil.d(() -> "no provided");
             } else {
@@ -335,7 +331,10 @@ public class RaidSpawner {
                 try {
                     enemy = provider.create(enemyItem.getConfig());
                 } catch (EnemyProvider.ConfigurationError e) {
-                    e.printStackTrace();
+                    RaidSpawnerUtil.getLogger().severe("Invalid enemy config: " + provider.getSource() + ": " + e.getMessage());
+                    continue;
+                } catch (Throwable e) {
+                    RaidSpawnerUtil.getLogger().log(Level.SEVERE, "Invalid enemy config: " + provider.getSource(), e);
                     continue;
                 }
                 currentEnemies.add(enemy);
