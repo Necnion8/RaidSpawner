@@ -31,6 +31,8 @@ raid:
   event-time-minutes: 30
   # ウェーブ数
   waves: 5
+  # ウェーブの最大時間 (現ウェーブの敵を全て倒すか、この時間が経過すると次のウェーブに移行します。0 以下で無効)
+  max-wave-time-minutes: 6
   # イベント中に付与する権限グループ
   luckperms-group: in-raidspawner
   # Landがあるワールド (nullでLandのスポーン設定されたワールドを選択)

@@ -8,6 +8,7 @@ import java.util.List;
 public record RaidSetting(
         int eventTimeMinutes,
         int maxWaves,
+        int maxWaveTimeMinutes,
         @Nullable String luckPermsGroup,
         @Nullable String world,
         int mobsDistanceChunks,
@@ -17,6 +18,7 @@ public record RaidSetting(
     public static final RaidSetting DEFAULTS = new RaidSetting(
             30,
             5,
+            6,
             null,
             null,
             2,

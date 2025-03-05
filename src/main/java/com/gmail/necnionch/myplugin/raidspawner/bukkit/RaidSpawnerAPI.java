@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.ActionProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.LandAction;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.PlayerAction;
@@ -131,6 +132,18 @@ public interface RaidSpawnerAPI {
      * 有効な {@link ChunkViewRenderer} のチャンク情報を再読み込みします
      */
     void updateChunkViewRendererChunks();
+
+    /**
+     * 終了結果に基づいて実行アクションを実行します
+     * @return 実行されたアクションタイプと結果のマップ
+     */
+    @Nullable Map<Class<Action>, Boolean> executeActions(RaidSpawner spawner, RaidEndResult result);
+
+    /**
+     * 指定された実行アクションを実行します
+     * @return 実行されたアクションタイプと結果のマップ
+     */
+    Map<Class<Action>, Boolean> executeActions(RaidSpawner spawner, List<Action> actions);
 
     Collection<Land> getLands();
 

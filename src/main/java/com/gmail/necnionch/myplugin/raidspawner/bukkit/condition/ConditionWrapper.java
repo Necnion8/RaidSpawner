@@ -57,7 +57,7 @@ public class ConditionWrapper {
             timerTask = new TimerTask() {
                 @Override
                 public void run() {
-                    RaidSpawnerUtil.runInMainThread(trigger::action);
+                    RaidSpawnerUtil.runTask(trigger::action);
                 }
             };
             timer.schedule(timerTask, trigger.getDelayTime());

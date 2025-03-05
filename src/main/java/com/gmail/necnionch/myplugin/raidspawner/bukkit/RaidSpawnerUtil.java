@@ -6,6 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -26,8 +27,12 @@ public class RaidSpawnerUtil {
         return plugin;
     }
 
-    public static void runInMainThread(Runnable task) {
+    public static void runTask(Runnable task) {
         Bukkit.getScheduler().runTask(getPlugin(), task);
+    }
+
+    public static BukkitTask runTaskLater(Runnable task, long delay) {
+        return Bukkit.getScheduler().runTaskLater(getPlugin(), task, delay);
     }
 
     public static Logger getLogger() {
@@ -65,6 +70,5 @@ public class RaidSpawnerUtil {
     public static boolean isRaidPlayer(OfflinePlayer player) {
         return isRaidPlayer(player.getUniqueId());
     }
-
 
 }

@@ -645,7 +645,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         raids.values().forEach(RaidSpawner::start);
 
         // delay 1 tick
-        RaidSpawnerUtil.runInMainThread(() -> {
+        RaidSpawnerUtil.runTask(() -> {
             // 未所属キック
             if (pluginConfig.isNonMembersKick()) {
                 for (Player p : getServer().getOnlinePlayers()) {
@@ -709,6 +709,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         List<Action> loseActions = createActions("lose", pluginConfig.getLoseRewardActions());
 
         return new RaidSpawner(
+                this,
                 landChunkFindResult.land(),
                 pluginConfig.getRaidSetting(),
                 landChunkFindResult.world(),
@@ -753,7 +754,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         return null;
     }
 
-    public @Nullable Map<Class<Action>, Boolean> sendReward(RaidSpawner spawner, RaidEndResult result) {
+    @Override
+    public @Nullable Map<Class<Action>, Boolean> executeActions(RaidSpawner spawner, RaidEndResult result) {
         RaidSpawner.Rewards rewards = spawner.getRewards();
         List<Action> actions = null;
 
@@ -785,6 +787,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         return executeActions(spawner, actions);
     }
 
+    @Override
     public Map<Class<Action>, Boolean> executeActions(RaidSpawner spawner, List<Action> actions) {
         Map<Class<Action>, Boolean> rewardResults = new HashMap<>();
         for (Action action : actions) {

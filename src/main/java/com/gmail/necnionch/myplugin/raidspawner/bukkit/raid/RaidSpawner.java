@@ -1,6 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.raid;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerAPI;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
@@ -27,9 +27,9 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.world.EntitiesUnloadEvent;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -40,7 +40,7 @@ public class RaidSpawner {
     public static final Set<UUID> spawnedEntities = new HashSet<>();
     public static final Multimap<KeepChunk, UUID> keepChunksByEntities = LinkedHashMultimap.create();
 
-    private final RaidSpawnerPlugin plugin = JavaPlugin.getPlugin(RaidSpawnerPlugin.class);
+    private final RaidSpawnerAPI api;
     private final Random random = new Random();
     private final Land land;
     private final RaidSetting setting;
@@ -51,12 +51,14 @@ public class RaidSpawner {
     private boolean running;
     private int waves;
     private long endTime = -1;  // 負の値で開始時刻; 正の値で終了にかかった時間(ms)
+    private @Nullable BukkitTask currentWaveMaxTimer;
     private final List<Enemy> currentEnemies = new ArrayList<>();
     private @Nullable RaidEndResult endResult;
     private @Nullable RaidEndReason endReason;
     private @Nullable Map<Class<Action>, Boolean> endActionResults;
 
-    public RaidSpawner(Land land, RaidSetting setting, World world, List<Chunk> spawnChunks, List<ChunkCoordinate> landChunks, Rewards rewards) {
+    public RaidSpawner(RaidSpawnerAPI api, Land land, RaidSetting setting, World world, List<Chunk> spawnChunks, List<ChunkCoordinate> landChunks, Rewards rewards) {
+        this.api = api;
         this.land = land;
         this.setting = setting;
         this.world = world;
@@ -169,9 +171,9 @@ public class RaidSpawner {
         RaidSpawnerUtil.getLogger().info("Raid started: " + land.getName());
 
         Collection<Player> players = land.getOnlinePlayers();
-        plugin.getPluginLang().send(players, Lang.START_MESSAGE);
+        api.getPluginLang().send(players, Lang.START_MESSAGE);
 
-        EventStart.StartNotify notifyConfig = plugin.getPluginConfig().getStartNotify();
+        EventStart.StartNotify notifyConfig = api.getPluginConfig().getStartNotify();
         if (notifyConfig.teleportToLand()) {
             teleportToSpawn(players);
         }
@@ -200,9 +202,14 @@ public class RaidSpawner {
             endTime = System.currentTimeMillis() + endTime;
         }
 
+        if (currentWaveMaxTimer != null) {
+            currentWaveMaxTimer.cancel();
+            currentWaveMaxTimer = null;
+        }
+
         Map<Class<Action>, Boolean> actionResults = null;
         try {
-            actionResults = plugin.sendReward(this, result);
+            actionResults = api.executeActions(this, result);
         } catch (Throwable e) {
             e.printStackTrace();
         }
@@ -223,11 +230,11 @@ public class RaidSpawner {
 
         Collection<Player> players = land.getOnlinePlayers();
         if (RaidEndResult.CANCEL.equals(result)) {
-            plugin.getPluginLang().send(players, Lang.END_CANCEL_MESSAGE);
+            api.getPluginLang().send(players, Lang.END_CANCEL_MESSAGE);
         } else if (RaidEndResult.WIN.equals(result)) {
-            plugin.getPluginLang().send(players, Lang.END_WIN_MESSAGE);
+            api.getPluginLang().send(players, Lang.END_WIN_MESSAGE);
         } else if (RaidEndResult.LOSE.equals(result)) {
-            plugin.getPluginLang().send(players, Lang.END_LOSE_MESSAGE);
+            api.getPluginLang().send(players, Lang.END_LOSE_MESSAGE);
         }
 
         Bukkit.getPluginManager().callEvent(new RaidSpawnEndEvent(this, result, reason));
@@ -278,6 +285,10 @@ public class RaidSpawner {
     }
 
     public void tryNextWave() {
+        tryNextWave(true);
+    }
+
+    public void tryNextWave(boolean fullWaveToWin) {
         if (!running)
             return;
 
@@ -288,7 +299,7 @@ public class RaidSpawner {
             RaidSpawnerUtil.d(() -> "waves: " + waves);
             doWave();
 
-        } else {
+        } else if (fullWaveToWin) {
             clearSetWin(RaidEndReason.FULL_WAVES);
         }
 
@@ -382,6 +393,14 @@ public class RaidSpawner {
                 }
             }
         }
+
+        // set wave timer
+        if (currentWaveMaxTimer != null) {
+            currentWaveMaxTimer.cancel();
+        }
+        if (0 < setting.maxWaveTimeMinutes()) {
+            currentWaveMaxTimer = RaidSpawnerUtil.runTaskLater(this::onWaveMaxTimer, setting.maxWaveTimeMinutes() * 60L * 20);
+        }
     }
 
     private @Nullable Location selectRandomSpawnLocationByChunk(org.bukkit.Chunk chunk, Random random, boolean ignoreBlockTest) {
@@ -404,17 +423,22 @@ public class RaidSpawner {
             players.forEach(pot::apply);
         }
 
-        String title = plugin.getPluginLang().format(Lang.START_TITLE);
-        String subtitle = plugin.getPluginLang().format(Lang.START_SUBTITLE);
+        String title = api.getPluginLang().format(Lang.START_TITLE);
+        String subtitle = api.getPluginLang().format(Lang.START_SUBTITLE);
         if (title.isEmpty() && subtitle.isEmpty())
             return;
 
-        plugin.getServer().getScheduler().runTask(plugin, () -> {  // Landsのタイトルを上書きする
+        RaidSpawnerUtil.runTask(() -> {  // Landsのタイトルを上書きする
             for (Player player : players) {
                 player.resetTitle();
                 player.sendTitle(title, subtitle, 10, 20 * 4, 10);
             }
         });
+    }
+
+    private void onWaveMaxTimer() {
+        // ウェーブタイマーが経過したら次のウェーブに移動する
+        tryNextWave(false);
     }
 
 

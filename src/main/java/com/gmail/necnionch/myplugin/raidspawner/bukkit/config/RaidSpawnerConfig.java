@@ -33,6 +33,7 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         raidSetting = new RaidSetting(
                 config.getInt("event-time-minutes", RaidSetting.DEFAULTS.eventTimeMinutes()),
                 config.getInt("waves", RaidSetting.DEFAULTS.maxWaves()),
+                config.getInt("max-wave-time-minutes", RaidSetting.DEFAULTS.maxWaveTimeMinutes()),
                 config.getString("luckperms-group", RaidSetting.DEFAULTS.luckPermsGroup()),
                 config.getString("world", RaidSetting.DEFAULTS.world()),
                 config.getInt("mobs-distance-chunks", RaidSetting.DEFAULTS.mobsDistanceChunks()),
