@@ -50,6 +50,7 @@ public class RaidSpawner {
     private boolean running;
     private int waves;
     private long endTime = -1;  // 負の値で開始時刻; 正の値で終了にかかった時間(ms)
+    private int deathCount;  // プレイヤーの死亡回数
     private @Nullable KeyedBossBar bossBar;
     private @Nullable BukkitTask gameTickTask;
     private @Nullable BukkitTask currentWaveMaxTimer;
@@ -135,6 +136,25 @@ public class RaidSpawner {
         return endTime < 0 ? -1 : endTime;
     }
 
+    /**
+     * プレイヤーの死亡回数を返します
+     */
+    public int getDeathCount() {
+        return deathCount;
+    }
+
+    /**
+     * チケット数を返します
+     * @return {@link RaidSetting#tickets()} から {@link #getDeathCount()} を引いた値
+     */
+    public int getDeathCountTickets() {
+        return setting.tickets() - deathCount;
+    }
+
+    public boolean isEnableDeathCountTickets() {
+        return 0 < setting.tickets();
+    }
+
     public void teleportToSpawn(Collection<Player> players) {
         UnloadedPosition pos = land.getSpawnPosition();
 
@@ -156,6 +176,20 @@ public class RaidSpawner {
         }
     }
 
+    /**
+     * 指定されたプレイヤーがこの襲撃イベントに関係するか
+     */
+    public boolean containsPlayer(Player player) {
+        return containsPlayer(player.getUniqueId());
+    }
+
+    /**
+     * 指定されたプレイヤーがこの襲撃イベントに関係するか
+     */
+    public boolean containsPlayer(UUID playerId) {
+        return land.isTrusted(playerId);
+    }
+
     public void setWaves(int newWaves) {
         if (!running)
             throw new IllegalArgumentException("Not running raid");
@@ -173,6 +207,7 @@ public class RaidSpawner {
     public void start() {
         running = true;
         endTime = -System.currentTimeMillis();
+        deathCount = 0;
         RaidSpawnerUtil.getLogger().info("Raid started: " + land.getName());
 
         Collection<Player> players = land.getOnlinePlayers();
@@ -228,6 +263,8 @@ public class RaidSpawner {
 
     public void clear(RaidEndResult result, @Nullable RaidEndReason reason) {
         RaidSpawnerUtil.getLogger().info("Raid ended: " + land.getName() + " (" + result.name() + ", " + Optional.ofNullable(reason).map(RaidEndReason::getType).orElse("none") + ")");
+        endResult = result;
+        endReason = reason;
         running = false;
         if (endTime < 0) {
             endTime = System.currentTimeMillis() + endTime;
@@ -267,12 +304,22 @@ public class RaidSpawner {
         currentEnemies.clear();
 
         Collection<Player> players = land.getOnlinePlayers();
+        Lang message = null;
         if (RaidEndResult.CANCEL.equals(result)) {
-            api.getPluginLang().send(players, Lang.END_CANCEL_MESSAGE);
+            message = Lang.END_CANCEL_MESSAGE;
         } else if (RaidEndResult.WIN.equals(result)) {
-            api.getPluginLang().send(players, Lang.END_WIN_MESSAGE);
+            message = Lang.END_WIN_MESSAGE;
         } else if (RaidEndResult.LOSE.equals(result)) {
-            api.getPluginLang().send(players, Lang.END_LOSE_MESSAGE);
+            if (RaidEndReason.TIMEOUT.equals(reason)) {
+                message = Lang.END_LOSE_TIMEOUT_MESSAGE;
+            } else if (RaidEndReason.NO_TICKETS.equals(reason)) {
+                message = Lang.END_LOSE_NO_TICKETS_MESSAGE;
+            } else {
+                message = Lang.END_LOSE_MESSAGE;
+            }
+        }
+        if (message != null) {
+            api.getPluginLang().send(players, message);
         }
 
         Bukkit.getPluginManager().callEvent(new RaidSpawnEndEvent(this, result, reason));
@@ -296,17 +343,18 @@ public class RaidSpawner {
     }
 
     public void clearSetLose(@Nullable RaidEndReason reason) {
-        this.endResult = RaidEndResult.LOSE;
-        this.endReason = reason;
         clear(RaidEndResult.LOSE, reason);
     }
 
-    public void clearSetWin(@Nullable RaidEndReason reason) {
-        this.endResult = RaidEndResult.WIN;
-        this.endReason = reason;
-        clear(RaidEndResult.WIN, reason);
-    }
 
+    public void onDeathPlayer(Player player) {
+        if (!containsPlayer(player))
+            return;
+
+        if (isEnableDeathCountTickets() && (setting.tickets() - ++deathCount) <= 0) {
+            clearSetLose(RaidEndReason.NO_TICKETS);
+        }
+    }
 
     public void onDeathEntity() {
         currentEnemies.stream()
@@ -338,7 +386,7 @@ public class RaidSpawner {
             doWave();
 
         } else if (fullWaveToWin) {
-            clearSetWin(RaidEndReason.FULL_WAVES);
+            clear(RaidEndResult.WIN, RaidEndReason.FULL_WAVES);
         }
 
     }
@@ -500,7 +548,7 @@ public class RaidSpawner {
                     .replaceAll("%max_waves", String.valueOf(getMaxWaves()))
                     .replaceAll("%enemies%", String.valueOf(currentEnemies.stream().filter(Enemy::isAlive).count()))
                     .replaceAll("%total_enemies%", String.valueOf(currentEnemies.size()))
-                    .replaceAll("%tickets%", String.valueOf(0));  // TODO: replace ticket value
+                    .replaceAll("%tickets%", String.valueOf(getDeathCountTickets()));
             bossBar.setTitle(text);
 
             // show

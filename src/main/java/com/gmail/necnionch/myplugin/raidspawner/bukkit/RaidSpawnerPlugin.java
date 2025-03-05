@@ -35,10 +35,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.entity.EntityTransformEvent;
+import org.bukkit.event.entity.*;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -856,6 +853,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                             sb.append("- ").append(lose.getLand().getName());
                             if (RaidEndReason.NO_PLAYERS.equals(lose.getEndReason())) {
                                 sb.append(" (プレイヤー不在)");
+                            } else if (RaidEndReason.NO_TICKETS.equals(lose.getEndReason())) {
+                                sb.append(" (チケット切れ)");
                             }
                             sb.append("\n");
                         }
@@ -899,7 +898,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         }
 
         for (RaidSpawner spawner : raids.values()) {
-            if (spawner.isRunning() && spawner.getBossBar() != null && spawner.getLand().isTrusted(player.getUniqueId())) {
+            if (spawner.isRunning() && spawner.getBossBar() != null && spawner.containsPlayer(player)) {
                 spawner.getBossBar().addPlayer(player);
             }
         }
@@ -929,6 +928,15 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             if (land.getOnlinePlayers().isEmpty()) {
                 logDebug(() -> "No online players | land: " + spawner.getLand().getName());
                 spawner.clearSetLose(RaidEndReason.NO_PLAYERS);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onDeathPlayer(PlayerDeathEvent event) {
+        for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+            if (spawner.containsPlayer(event.getEntity())) {
+                spawner.onDeathPlayer(event.getEntity());
             }
         }
     }

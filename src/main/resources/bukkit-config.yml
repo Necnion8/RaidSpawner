@@ -41,7 +41,8 @@ raid:
     style: solid  # https://hub.spigotmc.org/javadocs/spigot/org/bukkit/boss/BarStyle.html
     # 仕様できる値: %wave%, %max_waves%, %enemies%, %total_enemies%, %tickets%
     text: "&6Wave: %wave%/%max_waves% &f| &c敵残存数: %enemies% &f| &e残りチケット: %tickets%"
-
+  # 死亡回数の制限。このカウントが 0 になるとイベント終了(敗北)します (0 以下で無効)
+  tickets: 20
   # イベント中に付与する権限グループ
   luckperms-group: in-raidspawner
   # Landがあるワールド (nullでLandのスポーン設定されたワールドを選択)

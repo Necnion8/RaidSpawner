@@ -8,5 +8,6 @@ public interface RaidEndReason {
     RaidEndReason NO_PLAYERS = () -> "no_players";
     RaidEndReason FULL_WAVES = () -> "full_waves";
     RaidEndReason COMMAND = () -> "command";
+    RaidEndReason NO_TICKETS = () -> "no_tickets";
 
 }
