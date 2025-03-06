@@ -275,7 +275,7 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
             inv.addItem(mainHandItem);
         }
         player.updateInventory();
-        api.updateChunkViewRendererChunks();
+        api.updateChunkViewRendererChunks(true);
     }
 
     private void executeReloadCommand(CommandSender sender) {

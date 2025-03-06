@@ -31,7 +31,7 @@ raid:
   event-time-minutes: 30
   # ウェーブ数
   waves: 5
-  # ウェーブの最大時間 (現ウェーブの敵を全て倒すか、この時間が経過すると次のウェーブに移行します。0 以下で無効)
+  # ウェーブの最大時間。現ウェーブの敵を全て倒すか、この時間が経過すると次のウェーブに移行します (0 以下で無効)
   max-wave-time-minutes: 6
   # ボスバー表示設定
   bossbar:
@@ -45,12 +45,13 @@ raid:
   tickets: 20
   # イベント中に付与する権限グループ
   luckperms-group: in-raidspawner
-  # Landがあるワールド (nullでLandのスポーン設定されたワールドを選択)
+  # 襲撃イベントを発生させるワールド (nullでLandのスポーン設定を使用)
   world:
   # スポーン位置: Landから離すチャンク数
   mobs-distance-chunks: 2
   # モブ設定
   mobs:
+    # 式に使用できる値: online_players, land_players, land_chunks, wave
     - count: "ceil( land_players * (3 + land_chunks * 1.5) * (1 + 0.1 * wave) )"  # or number value
       # スポーン対象
       enemies:

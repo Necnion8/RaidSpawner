@@ -9,6 +9,11 @@ public record BossBarSetting(
         BarStyle style,
         String text
 ) {
-    public static final BossBarSetting DEFAULTS = new BossBarSetting(true, BarColor.PURPLE, BarStyle.SOLID, "&6Wave: %wave%/%max_waves% &f| &c敵残存数: %enemies% &f| &e残りチケット: %tickets%");
+    public static final BossBarSetting DEFAULTS = new BossBarSetting(
+            true,
+            BarColor.PURPLE,
+            BarStyle.SOLID,
+            "&6Wave: &l%wave%/%max_waves%&f | &c敵残存数: &l%enemies%&f | &e残りチケット: &l%tickets%"
+    );
 
 }

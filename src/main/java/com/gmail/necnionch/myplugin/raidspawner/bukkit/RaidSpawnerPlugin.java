@@ -86,7 +86,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
         if (pluginConfig.load()) {
             enableDebug = pluginConfig.isEnableDebug();
-            startStartConditions();
         } else {
             // show after server startup
             getServer().getScheduler().runTask(this, () -> getLogger().warning(
@@ -123,6 +122,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
         initializeProviders();
         getServer().getPluginManager().registerEvents(this, this);
+        startStartConditions();
     }
 
     @Override
@@ -298,8 +298,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     }
 
     @Override
-    public void updateChunkViewRendererChunks() {
-        if (lastLandChunkFindResult == null)
+    public void updateChunkViewRendererChunks(boolean force) {
+        if (force || lastLandChunkFindResult == null)
             findLandChunk(getLands());
         ChunkViewRenderer.setChunksAndLands(lastLandChunkFindResult, getLands());
     }
@@ -868,6 +868,8 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 getLogger().info("Auto start conditions restarting");
                 startStartConditions();
             });
+
+            updateChunkViewRendererChunks(true);
         }
     }
 

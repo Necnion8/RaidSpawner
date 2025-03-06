@@ -22,6 +22,8 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
 | 〃                                   | startall<br><sup>襲撃イベントを手動で開始</sup>                     | 〃                                   |   〃   |
 | 〃                                   | stop (land) <cancel/win/lose><br><sup>襲撃イベントの強制終了</sup> | 〃                                   |   〃   |
 | 〃                                   | stopall <cancel/win/lose><br><sup>襲撃イベントの強制終了</sup>     | 〃                                   |   〃   |
+| 〃                                   | setwave (land) (wave)<br><sup>現在のウェーブ数を変更</sup>         | 〃                                   |   〃   |
+| 〃                                   | nextwave (land)<br><sup>現在のウェーブをスキップ</sup>              | 〃                                   |   〃   |
 |                                     | <sup>Land未参加でもキックしない</sup>                              | raidspawner.bypass.non-members-kick |   〃   |
 
 ## 設定
@@ -91,90 +93,9 @@ actions:
       keep-land: false  # 省略可
 ```
 
-### 設定ファイル サンプル
-<details>
-    <summary>
-        config.yml
-    </summary>
+### デフォルトの設定
+[./plugins/RaidSpawner/config.yml](src%2Fmain%2Fresources%2Fbukkit-config.yml)
 
-> [./plugins/RaidSpawner/config.yml](src%2Fmain%2Fresources%2Fbukkit-config.yml)
-> ```yml
-> # イベント開始設定
-> event-start:
->   # いずれかの条件を満たすと実行
->   conditions:
->     - type: real-clock
->       timezone: Asia/Tokyo  # or local
->       time-hours: 22
->       time-minutes: 30
->
->   # 開始前通知
->   pre-notify:
->     enable: true
->     minutes: 3
->
->   # 開始通知
->   start-notify:
->     # 盲目の付与
->     blind-effect: true
->     # Landスポーンが設定されていなければ、敷地内のランダムな位置にテレポートします
->     teleport-to-land: true
->
->   # 開始アクション
->   actions:
->
-> # 襲撃設定
-> raid:
->   # Land未所属プレイヤーを退出または参加させない設定
->   non-members-kick-enable: true
->   # ゲーム時間
->   event-time-minutes: 30
->   # ウェーブ数
->   waves: 5
->   # イベント中に付与する権限グループ
->   luckperms-group: in-raidspawner
->   # Landがあるワールド (nullでLandのスポーン設定されたワールドを選択)
->   world:
->   # スポーン位置: Landから離すチャンク数
->   mobs-distance-chunks: 2
->   # モブ設定
->   mobs:
->     - count: "ceil( land_players * (3 + land_chunks * 1.5) * (1 + 0.1 * wave) )"  # or number value
->       # スポーン対象
->       enemies:
->         - source: mythicmobs
->           type: MOB_TYPE
->           level: 1
->           priority: 10
->
-> # 成功報酬設定
-> event-win-rewards:
->   # 条件を満たしたもののみ実行
->   conditions:
->     - type: timer
->       time-minutes: 15
->       actions:
->
->   # どの条件も満たされていない場合のアクション
->   condition-else:
->     actions:
->
-> # 失敗報酬設定
-> event-lose-rewards:
->   actions:
->
-> # イベント終了設定
-> event-end:
->   send-result-to-discord: true
->
-> # Discord連携設定
-> discord:
->   # 連携機能の有効 (DiscordSRVが必要です)
->   enable: false
->   # 通知を送信するチャンネルID
->   channel: 000000000000000000
-> ```
-</details>
  
 ## ライセンス
 - [exp4j](https://github.com/fasseg/exp4j) - Apache License 2.0

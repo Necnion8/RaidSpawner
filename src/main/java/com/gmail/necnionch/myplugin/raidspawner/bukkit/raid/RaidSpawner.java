@@ -73,6 +73,10 @@ public class RaidSpawner {
         return land;
     }
 
+    public RaidSetting getSetting() {
+        return setting;
+    }
+
     public Rewards getRewards() {
         return rewards;
     }
@@ -123,6 +127,9 @@ public class RaidSpawner {
         return endReason;
     }
 
+    /**
+     * 終了アクションの実行結果を返します
+     */
     @Nullable
     public Map<Class<Action>, Boolean> getEndActionResults() {
         return endActionResults;
@@ -144,17 +151,24 @@ public class RaidSpawner {
     }
 
     /**
-     * チケット数を返します
+     * チケット数(死亡回数制限)を返します
      * @return {@link RaidSetting#tickets()} から {@link #getDeathCount()} を引いた値
      */
     public int getDeathCountTickets() {
         return setting.tickets() - deathCount;
     }
 
+    /**
+     * チケット(死亡回数制限)が有効なら true を返します
+     */
     public boolean isEnableDeathCountTickets() {
         return 0 < setting.tickets();
     }
 
+    /**
+     * プレイヤーを襲撃イベント地点へテレポートします<br>
+     * このワールド上に設定されているLandスポーン または、保有チャンクのランダムな位置にテレポートします。
+     */
     public void teleportToSpawn(Collection<Player> players) {
         UnloadedPosition pos = land.getSpawnPosition();
 
@@ -190,6 +204,10 @@ public class RaidSpawner {
         return land.isTrusted(playerId);
     }
 
+    /**
+     * ウェーブ数を変更します
+     * @throws IllegalArgumentException 開始していないイベント、または newWaves の値が無効
+     */
     public void setWaves(int newWaves) {
         if (!running)
             throw new IllegalArgumentException("Not running raid");
@@ -204,6 +222,9 @@ public class RaidSpawner {
         tryNextWave();
     }
 
+    /**
+     * 襲撃イベントを開始します
+     */
     public void start() {
         running = true;
         endTime = -System.currentTimeMillis();
@@ -242,25 +263,9 @@ public class RaidSpawner {
         gameTickTask = RaidSpawnerUtil.runTaskTimer(this::tick, 0);
     }
 
-    private @Nullable KeyedBossBar createAndInitBossBar() {
-        removeBossBar();
-        BossBarSetting setting = this.setting.bossBar();
-        if (setting.enable()) {
-            NamespacedKey bossBarKey = new NamespacedKey(RaidSpawnerUtil.getPlugin(), "raid_" + UUID.randomUUID().toString().replace('-', ' '));
-            bossBar = Bukkit.createBossBar(bossBarKey, null, setting.color(), setting.style());
-            return bossBar;
-        }
-        return null;
-    }
-
-    private void removeBossBar() {
-        if (bossBar != null) {
-            bossBar.setVisible(false);
-            bossBar.removeAll();
-            Bukkit.removeBossBar(bossBar.getKey());
-        }
-    }
-
+    /**
+     * 襲撃イベントを終了します
+     */
     public void clear(RaidEndResult result, @Nullable RaidEndReason reason) {
         RaidSpawnerUtil.getLogger().info("Raid ended: " + land.getName() + " (" + result.name() + ", " + Optional.ofNullable(reason).map(RaidEndReason::getType).orElse("none") + ")");
         endResult = result;
@@ -338,10 +343,10 @@ public class RaidSpawner {
         }
     }
 
-    public void clear() {
-        clear(RaidEndResult.CANCEL, null);
-    }
-
+    /**
+     * 襲撃イベントを敗北として終了します<br>
+     * @see #clear(RaidEndResult, RaidEndReason)
+     */
     public void clearSetLose(@Nullable RaidEndReason reason) {
         clear(RaidEndResult.LOSE, reason);
     }
@@ -370,10 +375,10 @@ public class RaidSpawner {
         }
     }
 
-    public void tryNextWave() {
-        tryNextWave(true);
-    }
-
+    /**
+     * 可能なら次のウェーブに移行します
+     * @param fullWaveToWin 最大ウェーブに達したら勝利
+     */
     public void tryNextWave(boolean fullWaveToWin) {
         if (!running)
             return;
@@ -391,6 +396,18 @@ public class RaidSpawner {
 
     }
 
+    /**
+     * 可能なら次のウェーブに移行します。最大ウェーブに達したら勝利としてイベントを終了します。
+     * @see #tryNextWave(boolean)
+     */
+    public void tryNextWave() {
+        tryNextWave(true);
+    }
+
+
+    /**
+     * ウェーブの開始処理をします
+     */
     private void doWave() {
         currentEnemies.stream()
                 .filter(e -> !e.isAlive())
@@ -489,6 +506,11 @@ public class RaidSpawner {
         }
     }
 
+    /**
+     * チャンクの範囲内でランダムな位置を返します
+     * @param chunk 対象のチャンク
+     * @param ignoreBlockTest ブロックをテストしません (false の場合は水や溶岩を避けます)
+     */
     private @Nullable Location selectRandomSpawnLocationByChunk(org.bukkit.Chunk chunk, Random random, boolean ignoreBlockTest) {
         for (int i = 0; i < 8; i++) {  // limit 8 tests
             int blockX = 4 + random.nextInt(8);
@@ -522,41 +544,70 @@ public class RaidSpawner {
         });
     }
 
+    /**
+     * ボスバーを作成します。既存のボスバーは削除されます。
+     */
+    private @Nullable KeyedBossBar createAndInitBossBar() {
+        removeBossBar();
+        BossBarSetting setting = this.setting.bossBar();
+        if (setting.enable()) {
+            NamespacedKey bossBarKey = new NamespacedKey(RaidSpawnerUtil.getPlugin(), "raid_" + UUID.randomUUID().toString().replace("-", ""));
+            bossBar = Bukkit.createBossBar(bossBarKey, null, setting.color(), setting.style());
+            return bossBar;
+        }
+        return null;
+    }
+
+    /**
+     * ボスバーを非表示にしてサーバーから削除します
+     */
+    private void removeBossBar() {
+        if (bossBar != null) {
+            bossBar.setVisible(false);
+            bossBar.removeAll();
+            Bukkit.removeBossBar(bossBar.getKey());
+        }
+    }
+
+    private void updateBossBar() {
+        if (bossBar == null)
+            return;
+
+        // progress
+        long maxTime = setting.eventTimeMinutes() * 60L * 1000;
+        double progress;
+        if (maxTime == 0) {
+            progress = 0;
+        } else if (endTime < 0) {
+            long gameTime = System.currentTimeMillis() + endTime;
+            progress = (double) gameTime / maxTime;
+        } else {
+            progress = (double) endTime / maxTime;
+        }
+        bossBar.setProgress(1 - progress);
+
+        // title
+        String text = ChatColor.translateAlternateColorCodes('&', setting.bossBar().text())
+                .replaceAll("%wave%", String.valueOf(waves))
+                .replaceAll("%max_waves%", String.valueOf(getMaxWaves()))
+                .replaceAll("%enemies%", String.valueOf(currentEnemies.stream().filter(Enemy::isAlive).count()))
+                .replaceAll("%total_enemies%", String.valueOf(currentEnemies.size()))
+                .replaceAll("%tickets%", String.valueOf(getDeathCountTickets()));
+        bossBar.setTitle(text);
+
+        // show
+        if (!bossBar.isVisible()) {
+            bossBar.setVisible(true);
+        }
+    }
+
     private void onWaveMaxTimer() {
         // ウェーブタイマーが経過したら次のウェーブに移動する
         tryNextWave(false);
     }
 
     private void tick() {
-        if (bossBar != null) {
-            // progress
-            long maxTime = setting.eventTimeMinutes() * 60L * 1000;
-            double progress;
-            if (maxTime == 0) {
-                progress = 0;
-            } else if (endTime < 0) {
-                long gameTime = System.currentTimeMillis() + endTime;
-                progress = (double) gameTime / maxTime;
-            } else {
-                progress = (double) endTime / maxTime;
-            }
-            bossBar.setProgress(1 - progress);
-
-            // title
-            String text = ChatColor.translateAlternateColorCodes('&', setting.bossBar().text())
-                    .replaceAll("%wave%", String.valueOf(waves))
-                    .replaceAll("%max_waves", String.valueOf(getMaxWaves()))
-                    .replaceAll("%enemies%", String.valueOf(currentEnemies.stream().filter(Enemy::isAlive).count()))
-                    .replaceAll("%total_enemies%", String.valueOf(currentEnemies.size()))
-                    .replaceAll("%tickets%", String.valueOf(getDeathCountTickets()));
-            bossBar.setTitle(text);
-
-            // show
-            if (!bossBar.isVisible()) {
-                bossBar.setVisible(true);
-            }
-
-        }
+        updateBossBar();
     }
 
 

@@ -130,8 +130,9 @@ public interface RaidSpawnerAPI {
 
     /**
      * 有効な {@link ChunkViewRenderer} のチャンク情報を再読み込みします
+     * @param force チャンクリストの更新を強制 (通常はリストがない場合のみ)
      */
-    void updateChunkViewRendererChunks();
+    void updateChunkViewRendererChunks(boolean force);
 
     /**
      * 終了結果に基づいて実行アクションを実行します
