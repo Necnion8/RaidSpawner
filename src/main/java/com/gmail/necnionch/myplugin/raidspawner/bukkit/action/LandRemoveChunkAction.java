@@ -2,6 +2,7 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit.action;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
+import me.angeschossen.lands.api.framework.blockutil.UnloadedPosition;
 import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
@@ -52,12 +53,20 @@ public class LandRemoveChunkAction implements LandAction {
             }
         } else {
             // random
-            Map<String, ? extends ChunkCoordinate> chunksKey = chunks.stream().collect(Collectors.toMap(c -> c.getX() + "," + c.getZ(), c -> c));
+            Set<String> chunksKey = chunks.stream().map(c -> c.getX() + "," + c.getZ()).collect(Collectors.toSet());
+
+            // exclude spawn chunk
+            UnloadedPosition spawnPosition = land.getSpawnPosition();
+            if (spawnPosition != null && spawnPosition.isTargetServer() && world.equals(spawnPosition.getWorld())) {
+                chunks.removeIf(c -> c.getX() == spawnPosition.getChunkX() && c.getZ() == spawnPosition.getChunkZ());
+            }
+
+            // priority set
             Function<ChunkCoordinate, Integer> priorityChunkFaces = chunk -> Stream.of(
-                    chunksKey.containsKey(chunk.getX() + 1 + "," + chunk.getZ()),
-                    chunksKey.containsKey(chunk.getX() - 1 + "," + chunk.getZ()),
-                    chunksKey.containsKey(chunk.getX() + "," + (chunk.getZ() + 1)),
-                    chunksKey.containsKey(chunk.getX() + "," + (chunk.getZ() - 1))
+                    chunksKey.contains(chunk.getX() + 1 + "," + chunk.getZ()),
+                    chunksKey.contains(chunk.getX() - 1 + "," + chunk.getZ()),
+                    chunksKey.contains(chunk.getX() + "," + (chunk.getZ() + 1)),
+                    chunksKey.contains(chunk.getX() + "," + (chunk.getZ() - 1))
             ).mapToInt(v -> v ? 1 : 0).sum();
 
             Random random = new Random();
