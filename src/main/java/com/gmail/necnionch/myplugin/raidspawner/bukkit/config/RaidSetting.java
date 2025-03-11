@@ -14,6 +14,7 @@ public record RaidSetting(
         @Nullable String luckPermsGroup,
         @Nullable String world,
         int mobsDistanceChunks,
+        int mobsGrowingEnemies,
         List<MobSetting> mobs
 ) {
 
@@ -26,6 +27,7 @@ public record RaidSetting(
             null,
             null,
             2,
+            10,
             Collections.singletonList(new MobSetting(
                     s -> 3, Collections.emptyList()
             ))

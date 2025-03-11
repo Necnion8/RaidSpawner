@@ -24,6 +24,7 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.boss.KeyedBossBar;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.world.EntitiesUnloadEvent;
 import org.bukkit.potion.PotionEffect;
@@ -369,11 +370,28 @@ public class RaidSpawner {
                 .map(Entity::getUniqueId)
                 .forEach(RaidSpawner::unsetKeepChunkWithEntity);
 
-        if (running && currentEnemies.stream().noneMatch(Enemy::isAlive)) {
-            RaidSpawnerUtil.d(() -> " -> no alive, to next");
-            tryNextWave();
+        if (running) {
+            long aliveCount = currentEnemies.stream().filter(Enemy::isAlive).count();
+
+            if (aliveCount <= 0) {
+                RaidSpawnerUtil.d(() -> " -> no alive, to next");
+                tryNextWave();
+
+            } else if (aliveCount <= setting.mobsGrowingEnemies()) {
+                PotionEffect growing = new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, false, false);
+                currentEnemies.stream()
+                        .filter(Enemy::isAlive)
+                        .map(Enemy::getEntity)
+                        .filter(Objects::nonNull)
+                        .forEach(e -> {
+                            if (e instanceof LivingEntity) {
+                                growing.apply((LivingEntity) e);
+                            }
+                        });
+            }
         }
     }
+
 
     /**
      * 可能なら次のウェーブに移行します

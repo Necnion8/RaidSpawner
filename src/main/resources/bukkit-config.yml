@@ -49,6 +49,8 @@ raid:
   world:
   # スポーン位置: Landから離すチャンク数
   mobs-distance-chunks: 2
+  # モブに白光効果を付与する敵残存数
+  mobs-growing-enemies: 10
   # モブ設定
   mobs:
     # 式に使用できる値: online_players, land_players, land_chunks, wave
