@@ -42,6 +42,7 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
   - `execute-command` - プレイヤーに対してコマンド実行<sup>※1</sup>
   - `add-money` - 所持金の追加
   - `remove-money` - 所持金の削除
+  - `playsound` - 音の再生 [IDリスト](https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Sound.html)
 - for Land
   - `command` - コマンド実行<sup>※1</sup>
   - `remove-chunk` - Landチャンクの削除

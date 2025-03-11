@@ -391,6 +391,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         Stream.of(
                 new PlayerCommandAction.Provider(),
                 new PlayerExecuteCommandAction.Provider(),
+                new PlayerPlaySoundAction.Provider(),
                 PlayerAddMoneyAction.Provider.createAndHookEconomy(this),
                 PlayerRemoveMoneyAction.Provider.createAndHookEconomy(this)
         )
