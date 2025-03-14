@@ -41,7 +41,7 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 config.getString("luckperms-group", RaidSetting.DEFAULTS.luckPermsGroup()),
                 config.getString("world", RaidSetting.DEFAULTS.world()),
                 config.getInt("mobs-distance-chunks", RaidSetting.DEFAULTS.mobsDistanceChunks()),
-                config.getInt("mobs-growing-enemies", RaidSetting.DEFAULTS.mobsGrowingEnemies()),
+                config.getInt("mobs-glowing-enemies", RaidSetting.DEFAULTS.mobsGlowingEnemies()),
                 Optional.ofNullable(getConfigList(config, "mobs"))
                         .map(this::getMobSettings)
                         .orElse(RaidSetting.DEFAULTS.mobs())

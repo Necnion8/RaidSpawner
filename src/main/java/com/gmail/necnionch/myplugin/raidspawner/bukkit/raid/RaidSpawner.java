@@ -392,7 +392,7 @@ public class RaidSpawner {
                 RaidSpawnerUtil.d(() -> " -> no alive, to next");
                 tryNextWave();
 
-            } else if (aliveCount <= setting.mobsGrowingEnemies()) {
+            } else if (aliveCount <= setting.mobsGlowingEnemies()) {
                 PotionEffect growing = new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, false, false);
                 currentEnemies.stream()
                         .filter(Enemy::isAlive)

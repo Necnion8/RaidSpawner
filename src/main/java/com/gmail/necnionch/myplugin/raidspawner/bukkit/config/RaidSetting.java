@@ -14,7 +14,7 @@ public record RaidSetting(
         @Nullable String luckPermsGroup,
         @Nullable String world,
         int mobsDistanceChunks,
-        int mobsGrowingEnemies,
+        int mobsGlowingEnemies,
         List<MobSetting> mobs
 ) {
 
