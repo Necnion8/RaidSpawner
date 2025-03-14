@@ -592,7 +592,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         if (isRunningRaid())
             throw new IllegalStateException("Already running raids");
 
-        raids.clear();
+        clearRaidAll(null, null);
         findLandChunk(getLandAPI().getLands())
                 .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
 
@@ -608,17 +608,24 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
     @Override
     public void clearRaidAll(@Nullable RaidEndResult result, @Nullable RaidEndReason reason) {
-        if (!isRunningRaid())
-            return;
-
         if (gameEndTimer != null) {
             gameEndTimer.cancel();
             gameEndTimer = null;
         }
 
-        new HashSet<>(raids.values()).forEach(r -> r.clear(result != null ? result : RaidEndResult.CANCEL, reason));
-        raids.clear();
-        getLogger().info("Raid Spawner Ended");
+        new HashSet<>(raids.values()).forEach(r -> {
+            if (r.isRunning()) {
+                try {
+                    r.clear(result != null ? result : RaidEndResult.CANCEL, reason);
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        if (!raids.isEmpty()) {
+            raids.clear();
+            getLogger().info("Raid Spawner Ended");
+        }
     }
 
     @Override
@@ -827,11 +834,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             endRaids.sort(Comparator.comparingLong(RaidSpawner::getEndTime));
 
             getServer().getPluginManager().callEvent(new RaidSpawnsAllEndEvent(endRaids));
-            raids.clear();
-            if (gameEndTimer != null) {
-                gameEndTimer.cancel();
-                gameEndTimer = null;
-            }
+            clearRaidAll(null, null);
 
             if (jdaInterface != null && pluginConfig.isSendResultToDiscordOnEventEnd()) {
                 Long discordChannelId = pluginConfig.getDiscordChannelIdWithEnabled();
@@ -962,7 +965,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onTransformEntity(EntityTransformEvent event) {
         for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
             for (Enemy enemy : spawner.currentEnemies()) {

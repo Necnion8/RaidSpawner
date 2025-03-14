@@ -8,7 +8,12 @@ import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.loot.LootTables;
 import org.bukkit.potion.PotionEffect;
@@ -16,13 +21,13 @@ import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Comparator;
 import java.util.Optional;
 
-public class TestEnemy implements Enemy {
+public class TestEnemy implements Enemy, Listener {
 
     private final Provider provider;
     private @Nullable LivingEntity entity;
+    private @Nullable RaidSpawner spawner;
 
     public TestEnemy(Provider provider) {
         this.provider = provider;
@@ -31,7 +36,8 @@ public class TestEnemy implements Enemy {
     @Override
     public @Nullable Entity spawn(RaidSpawner spawner, World world, Location location) {
         remove();
-        entity = world.spawn(location, Zombie.class, z -> {
+        this.spawner = spawner;
+        this.entity = world.spawn(location, Zombie.class, z -> {
             z.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, true));
             z.setLootTable(LootTables.EMPTY.getLootTable());
             z.addScoreboardTag("RAIDSPAWNER_TEST");
@@ -43,9 +49,7 @@ public class TestEnemy implements Enemy {
                 inv.setHelmetDropChance(0);
             });
 
-            spawner.getLand().getOnlinePlayers().stream()
-                    .min(Comparator.comparingDouble(p -> p.getLocation().distance(location)))
-                    .ifPresent(z::setTarget);
+            spawner.findNearestPlayer(location).ifPresent(z::setTarget);
 
         });
         return entity;
@@ -58,6 +62,7 @@ public class TestEnemy implements Enemy {
 
     @Override
     public boolean remove() {
+        spawner = null;
         if (entity == null)
             return false;
 
@@ -70,6 +75,11 @@ public class TestEnemy implements Enemy {
     }
 
     @Override
+    public void unload() {
+        remove();
+    }
+
+    @Override
     @Nullable
     public LivingEntity getEntity() {
         return entity;
@@ -79,6 +89,18 @@ public class TestEnemy implements Enemy {
     @Override
     public Provider getProvider() {
         return provider;
+    }
+
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onTarget(EntityTargetLivingEntityEvent event) {
+        if (spawner == null || entity == null || event.getEntity().getUniqueId() != entity.getUniqueId())
+            return;
+
+        if (event.getTarget() == null) {
+            Player player = spawner.findNearestPlayer(event.getEntity().getLocation()).orElse(null);
+            event.setTarget(player);
+        }
     }
 
 

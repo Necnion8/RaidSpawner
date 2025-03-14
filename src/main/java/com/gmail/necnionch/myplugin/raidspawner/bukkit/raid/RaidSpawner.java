@@ -1,6 +1,7 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.raid;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerAPI;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
@@ -25,6 +26,8 @@ import org.bukkit.boss.KeyedBossBar;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
 import org.bukkit.event.world.EntitiesUnloadEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -205,6 +208,14 @@ public class RaidSpawner {
     }
 
     /**
+     * 指定された座標にもっとも近いプレイヤーを返します
+     */
+    public Optional<Player> findNearestPlayer(Location location) {
+        return land.getOnlinePlayers().stream()
+                .min(Comparator.comparingDouble(p -> p.getLocation().distance(location)));
+    }
+
+    /**
      * ウェーブ数を変更します
      * @throws IllegalArgumentException 開始していないイベント、または newWaves の値が無効
      */
@@ -299,6 +310,14 @@ public class RaidSpawner {
                     .ifPresent(RaidSpawner::unsetKeepChunkWithEntity);
             try {
                 enemy.remove();
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+            if (enemy instanceof Listener) {
+                HandlerList.unregisterAll((Listener) enemy);
+            }
+            try {
+                enemy.unload();
             } catch (Throwable e) {
                 e.printStackTrace();
             }
@@ -430,7 +449,14 @@ public class RaidSpawner {
                 .map(Entity::getUniqueId)
                 .forEach(RaidSpawner::unsetKeepChunkWithEntity);
 
-        currentEnemies.removeIf(e -> !e.isAlive());  // keep alive
+        currentEnemies.removeIf(enemy -> {
+            try {
+                enemy.unload();
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+            return !enemy.isAlive();
+        });  // keep alive
 
         // select enemy
         RaidSpawnerUtil.d(() -> "setting.mobs -> " + setting.mobs().size() + " | land: " + land.getName());
@@ -480,6 +506,10 @@ public class RaidSpawner {
                     continue;
                 }
                 currentEnemies.add(enemy);
+                if (enemy instanceof Listener) {
+                    RaidSpawnerPlugin plugin = (RaidSpawnerPlugin) api;
+                    plugin.getServer().getPluginManager().registerEvents((Listener) enemy, plugin);
+                }
             }
         }
 

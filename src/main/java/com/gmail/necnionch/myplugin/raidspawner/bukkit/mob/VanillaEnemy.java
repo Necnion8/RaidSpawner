@@ -5,17 +5,20 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Mob;
+import org.bukkit.entity.*;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.loot.LootTables;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 public class VanillaEnemy implements Enemy {
@@ -24,6 +27,7 @@ public class VanillaEnemy implements Enemy {
     private final Consumer<LivingEntity> consumer;
     private final Provider provider;
     private @Nullable LivingEntity entity;
+    private @Nullable RaidSpawner spawner;
 
     public VanillaEnemy(Provider provider, EntityType entityType, Consumer<LivingEntity> consumer) {
         this.provider = provider;
@@ -34,14 +38,12 @@ public class VanillaEnemy implements Enemy {
     @Override
     public @Nullable Entity spawn(RaidSpawner spawner, World world, Location location) {
         remove();
-
-        entity = (LivingEntity) world.spawnEntity(location, entityType);
+        this.spawner = spawner;
+        this.entity = (LivingEntity) world.spawnEntity(location, entityType);
         consumer.accept(entity);
 
         if (entity instanceof Mob) {
-            spawner.getLand().getOnlinePlayers().stream()
-                    .min(Comparator.comparingDouble(p -> p.getLocation().distance(location)))
-                    .ifPresent(p -> ((Mob) entity).setTarget(p));
+            spawner.findNearestPlayer(location).ifPresent(p -> ((Mob) entity).setTarget(p));
         }
 
         return entity;
@@ -54,12 +56,18 @@ public class VanillaEnemy implements Enemy {
 
     @Override
     public boolean remove() {
+        spawner = null;
         if (entity == null)
             return false;
 
         entity.remove();
         entity = null;
         return true;
+    }
+
+    @Override
+    public void unload() {
+        remove();
     }
 
     @Override
@@ -72,6 +80,18 @@ public class VanillaEnemy implements Enemy {
     @Override
     public Provider getProvider() {
         return provider;
+    }
+
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onTarget(EntityTargetLivingEntityEvent event) {
+        if (spawner == null || entity == null || event.getEntity().getUniqueId() != entity.getUniqueId())
+            return;
+
+        if (event.getTarget() == null) {
+            Player player = spawner.findNearestPlayer(event.getEntity().getLocation()).orElse(null);
+            event.setTarget(player);
+        }
     }
 
 

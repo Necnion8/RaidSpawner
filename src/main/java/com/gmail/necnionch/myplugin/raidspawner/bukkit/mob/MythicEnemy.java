@@ -13,18 +13,22 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Comparator;
-
-public class MythicEnemy implements Enemy {
+public class MythicEnemy implements Enemy, Listener {
 
     private final Provider provider;
     private final MythicMob mob;
     private final String type;
     private final double level;
     private @Nullable ActiveMob activeMob;
+    private @Nullable RaidSpawner spawner;
 
     public MythicEnemy(Provider provider, MythicMob mob, String type, double level) {
         this.provider = provider;
@@ -48,16 +52,15 @@ public class MythicEnemy implements Enemy {
     @Override
     public @Nullable Entity spawn(RaidSpawner spawner, World world, Location location) {
         remove();
-        activeMob = mob.spawn(BukkitAdapter.adapt(location), level);
+        this.activeMob = mob.spawn(BukkitAdapter.adapt(location), level);
+        this.spawner = spawner;
 
         // override
         activeMob.setDespawnMode(DespawnMode.PERSISTENT);
 
         // set target
         if (!activeMob.hasTarget()) {
-            spawner.getLand().getOnlinePlayers().stream()
-                    .min(Comparator.comparingDouble(p -> p.getLocation().distance(location)))
-                    .ifPresent(p -> activeMob.setTarget(BukkitAdapter.adapt(p)));
+            spawner.findNearestPlayer(location).ifPresent(p -> activeMob.setTarget(BukkitAdapter.adapt(p)));
         }
         return activeMob.getEntity().getBukkitEntity();
     }
@@ -69,6 +72,7 @@ public class MythicEnemy implements Enemy {
 
     @Override
     public boolean remove() {
+        spawner = null;
         if (activeMob == null)
             return false;
 
@@ -78,6 +82,11 @@ public class MythicEnemy implements Enemy {
         activeMob.remove();
         activeMob = null;
         return true;
+    }
+
+    @Override
+    public void unload() {
+        remove();
     }
 
     @Nullable
@@ -100,6 +109,18 @@ public class MythicEnemy implements Enemy {
     @Override
     public Provider getProvider() {
         return provider;
+    }
+
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onTarget(EntityTargetLivingEntityEvent event) {
+        if (spawner == null || activeMob == null || event.getEntity().getUniqueId() != activeMob.getUniqueId())
+            return;
+
+        if (event.getTarget() == null) {
+            Player player = spawner.findNearestPlayer(event.getEntity().getLocation()).orElse(null);
+            event.setTarget(player);
+        }
     }
 
 
