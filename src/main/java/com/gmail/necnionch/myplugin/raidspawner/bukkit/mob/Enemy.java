@@ -23,7 +23,9 @@ public interface Enemy {
         return Optional.ofNullable(getEntity()).map(Entity::getLocation).orElse(null);
     }
 
-    default void unload() {}
+    default void unload() {
+        remove();
+    }
 
     @NotNull EnemyProvider<?> getProvider();
 

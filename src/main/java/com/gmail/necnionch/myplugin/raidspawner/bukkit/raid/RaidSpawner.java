@@ -450,13 +450,16 @@ public class RaidSpawner {
                 .forEach(RaidSpawner::unsetKeepChunkWithEntity);
 
         currentEnemies.removeIf(enemy -> {
+            if (enemy.isAlive())
+                return false;
+
             try {
                 enemy.unload();
             } catch (Throwable e) {
                 e.printStackTrace();
             }
-            return !enemy.isAlive();
-        });  // keep alive
+            return true;
+        });
 
         // select enemy
         RaidSpawnerUtil.d(() -> "setting.mobs -> " + setting.mobs().size() + " | land: " + land.getName());
