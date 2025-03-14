@@ -27,8 +27,6 @@ public enum Lang {
 
     PRESTART_NOTIFY_BROADCAST_MESSAGE("&4不穏な気配を感じる・・・"),
     START_MESSAGE(""),
-    START_TITLE(""),
-    START_SUBTITLE("&4&lまた奴らがやってくる"),
     END_CANCEL_MESSAGE(""),
     END_WIN_MESSAGE(""),
     END_LOSE_MESSAGE("&4襲撃者からの侵略を防ぎ切ることができなかった・・・"),

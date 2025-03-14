@@ -37,19 +37,53 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
   - `time-minutes` - 設定: 分
 
 ### アクション一覧
-- for Player
-  - `command` - コマンド実行<sup>※1</sup>
-  - `execute-command` - プレイヤーに対してコマンド実行<sup>※1</sup>
-  - `add-money` - 所持金の追加
-  - `remove-money` - 所持金の削除
-  - `playsound` - 音の再生 [IDリスト](https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Sound.html)
-- for Land
-  - `command` - コマンド実行<sup>※1</sup>
-  - `remove-chunk` - Landチャンクの削除
-    - `value` - チャンク数 (int)
-    - `keep-land` - チャンクを全て失ったLandを削除しない (bool, optional)
+#### プレイヤーアクション
+```yml
+## コマンドの実行
+command:  # 利用可能な値: %uuid%, %player%
+  - "effect give %uuid% instant_health 1 10 false"
+  - "say %player% Healed!"
 
-<sup>※1</sup> 文字列またはリストで、１つまたは複数のコマンドを指定できます。
+## プレイヤーに対してコマンド実行
+execute-command:  # 利用可能な値: %uuid%, %player%
+  - "say Hi!"
+
+## 所持金の追加
+add-money: 2000
+
+## 所持金の削除
+remove-money: 1000
+
+## 音の再生  https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Sound.html
+playsound: entity_evoker_cast_spell
+
+## タイトル表示
+title:
+  text: "&cゲーム開始！"  # 省略可
+  subtext: "&4全てのモンスターを討伐せよ！！"  # 省略可
+  fade-in: 20  # 単位: tick
+  fade-out: 20  # 単位: tick
+  duration: 60  # 単位: tick
+
+## ポーション効果の付与
+effects:
+  regeneration:  # エフェクトID  https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/potion/PotionEffectType.html
+    duration: 200  # 単位: tick
+    level: 2  # 効果レベル (デフォルト: 1)
+    silent: true  # 非表示にするか (デフォルト: false)
+```
+
+#### Land アクション
+```yml
+## コマンドの実行
+command:  # 利用可能な値: %land%
+  - "say Hello, %land% Land!"
+  
+## Landチャンクの削除
+remove-chunk:
+  value: 2  # チャンク数
+  keep-land: true  # チャンクを全て失ったLandを削除しない (デフォルト: false)
+```
 
 ### 敵モブ一覧
 - `test` - テストエンティティ。ダイヤ剣を持っていて、発光しています。

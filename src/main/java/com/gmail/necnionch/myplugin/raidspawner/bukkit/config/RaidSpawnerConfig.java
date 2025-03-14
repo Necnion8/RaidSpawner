@@ -209,12 +209,8 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         );
     }
 
-    public EventStart.StartNotify getStartNotify() {
-        return new EventStart.StartNotify(
-                config.getBoolean("event-start.start-notify.title-obfuscated-animation", true),
-                config.getBoolean("event-start.start-notify.blind-effect", true),
-                config.getBoolean("event-start.start-notify.teleport-to-land", true)
-        );
+    public boolean isTeleportToLandInStart() {
+        return config.getBoolean("event-start.teleport-to-land", true);
     }
 
     public boolean isSendResultToDiscordOnEventEnd() {

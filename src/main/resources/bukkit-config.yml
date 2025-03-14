@@ -13,15 +13,22 @@ event-start:
     enable: true
     minutes: 3
 
-  # 開始通知
-  start-notify:
-    # 盲目の付与
-    blind-effect: true
-    # Landスポーンが設定されていなければ、敷地内のランダムな位置にテレポートします
-    teleport-to-land: true
+  # 開始時にLandスポーン地点、または敷地内のランダムな位置にテレポートします
+  teleport-to-land: true
 
   # 開始アクション
   actions:
+    player:
+      effects:
+        blindness:
+          duration: 40
+          silent: true
+      title:
+        text: ""
+        subtext: "&4&lまた奴らがやってくる"
+        fade-in: 10
+        fade-out: 10
+        duration: 60
 
 # 襲撃設定
 raid:

@@ -5,7 +5,6 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.Action;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.BossBarSetting;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.EventStart;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
@@ -237,12 +236,9 @@ public class RaidSpawner {
 
         Optional.ofNullable(createAndInitBossBar()).ifPresent(b -> players.forEach(b::addPlayer));
 
-        EventStart.StartNotify notifyConfig = api.getPluginConfig().getStartNotify();
-        if (notifyConfig.teleportToLand()) {
+        if (api.getPluginConfig().isTeleportToLandInStart()) {
             teleportToSpawn(players);
         }
-
-        playStartNotify(notifyConfig, players);
 
         Bukkit.getPluginManager().callEvent(new RaidSpawnStartEvent(this));
         rewards.rewardConditions.forEach(ConditionWrapper::start);
@@ -541,25 +537,6 @@ public class RaidSpawner {
             return block.getLocation().add(.5, 1, .5);
         }
         return null;
-    }
-
-    private void playStartNotify(EventStart.StartNotify notify, Collection<Player> players) {
-        if (notify.bindEffect()) {
-            PotionEffect pot = new PotionEffect(PotionEffectType.BLINDNESS, 20 * 2, 0, false, false, false);
-            players.forEach(pot::apply);
-        }
-
-        String title = api.getPluginLang().format(Lang.START_TITLE);
-        String subtitle = api.getPluginLang().format(Lang.START_SUBTITLE);
-        if (title.isEmpty() && subtitle.isEmpty())
-            return;
-
-        RaidSpawnerUtil.runTask(() -> {  // Landsのタイトルを上書きする
-            for (Player player : players) {
-                player.resetTitle();
-                player.sendTitle(title, subtitle, 10, 20 * 4, 10);
-            }
-        });
     }
 
     /**
