@@ -308,19 +308,7 @@ public class RaidSpawner {
             Optional.ofNullable(enemy.getEntity())
                     .map(Entity::getUniqueId)
                     .ifPresent(RaidSpawner::unsetKeepChunkWithEntity);
-            try {
-                enemy.remove();
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
-            if (enemy instanceof Listener) {
-                HandlerList.unregisterAll((Listener) enemy);
-            }
-            try {
-                enemy.unload();
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
+            unloadEnemy(enemy);
         });
         currentEnemies.clear();
 
@@ -367,6 +355,25 @@ public class RaidSpawner {
         clear(RaidEndResult.LOSE, reason);
     }
 
+    private void unloadEnemy(Enemy enemy) {
+        if (!enemy.isAlive()) {
+            try {
+                enemy.remove();
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (enemy instanceof Listener) {
+            HandlerList.unregisterAll((Listener) enemy);
+        }
+
+        try {
+            enemy.unload();
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
 
     public void onDeathPlayer(Player player) {
         if (!containsPlayer(player))
@@ -452,12 +459,7 @@ public class RaidSpawner {
         currentEnemies.removeIf(enemy -> {
             if (enemy.isAlive())
                 return false;
-
-            try {
-                enemy.unload();
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
+            unloadEnemy(enemy);
             return true;
         });
 
