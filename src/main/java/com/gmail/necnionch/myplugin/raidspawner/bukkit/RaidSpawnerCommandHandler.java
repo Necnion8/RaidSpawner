@@ -87,6 +87,8 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
                 executeGiveChunkMap(getPlayer(sender));
             } else if (1 <= args.length && "reload".equalsIgnoreCase(args[0])) {
                 executeReloadCommand(sender);
+            } else if (1 <= args.length && "tphere".equalsIgnoreCase(args[0])) {
+                executeTpHereCommand(sender);
             } else {
                 sender.sendMessage(ChatColor.DARK_GRAY + "## " + ChatColor.RED + "RaidSpawner " + ChatColor.DARK_GRAY + "##");
                 sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "status");
@@ -281,6 +283,17 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     private void executeReloadCommand(CommandSender sender) {
         ((RaidSpawnerPlugin) api).reloadPluginConfig();
         api.getPluginLang().send(sender, Lang.COMMAND_RELOAD_DONE);
+    }
+
+    private void executeTpHereCommand(CommandSender sender) {
+        Player player = getPlayer(sender);
+        api.getLandAPI().getLandPlayer(player.getUniqueId()).getLands().stream()
+                .map(land -> api.getCurrentRaids().get(land))
+                .filter(Objects::nonNull)
+                .flatMap(r -> r.currentEnemies().stream().filter(Enemy::isAlive))
+                .map(Enemy::getEntity)
+                .filter(Objects::nonNull)
+                .forEach(e -> e.teleport(player));
     }
 
 
