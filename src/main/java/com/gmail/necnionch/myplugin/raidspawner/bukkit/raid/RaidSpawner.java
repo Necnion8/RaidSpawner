@@ -35,6 +35,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 
 public class RaidSpawner {
@@ -208,10 +209,20 @@ public class RaidSpawner {
     }
 
     /**
-     * 指定された座標にもっとも近いプレイヤーを返します
+     * 指定された座標にもっとも近いサバイバルモードのプレイヤーを返します
      */
     public Optional<Player> findNearestPlayer(Location location) {
+        return findNearestPlayer(location, p -> GameMode.SURVIVAL.equals(p.getGameMode()) || GameMode.ADVENTURE.equals(p.getGameMode()));
+    }
+
+    /**
+     * 指定された座標にもっとも近いプレイヤーを返します
+     */
+    public Optional<Player> findNearestPlayer(Location location, @Nullable Predicate<Player> check) {
+        if (check == null)
+            check = p -> true;
         return land.getOnlinePlayers().stream()
+                .filter(check)
                 .min(Comparator.comparingDouble(p -> p.getLocation().distance(location)));
     }
 
