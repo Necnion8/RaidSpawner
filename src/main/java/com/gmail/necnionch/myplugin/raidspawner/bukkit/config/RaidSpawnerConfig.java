@@ -1,7 +1,7 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.config;
 
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.gmail.necnionch.myplugin.raidspawner.common.BukkitConfigDriver;
+import com.gmail.necnionch.myplugin.raidspawner.libs.exp4j.extras.OperatorsComparison;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
 import org.bukkit.boss.BarColor;
@@ -13,7 +13,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class RaidSpawnerConfig extends BukkitConfigDriver {
@@ -42,6 +44,7 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 config.getString("world", RaidSetting.DEFAULTS.world()),
                 config.getInt("mobs-distance-chunks", RaidSetting.DEFAULTS.mobsDistanceChunks()),
                 config.getInt("mobs-glowing-enemies", RaidSetting.DEFAULTS.mobsGlowingEnemies()),
+                parseConditionType(config.getString("mobs-condition-type", "all"), "mobs-condition-type"),
                 Optional.ofNullable(getConfigList(config, "mobs"))
                         .map(this::getMobSettings)
                         .orElse(RaidSetting.DEFAULTS.mobs())
@@ -127,28 +130,54 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         return new Actions(playerActions, landActions);
     }
 
-    private Function<RaidSpawner, Integer> createCountExpression(Object exprValue) {
+    private Function<MobSetting.ExpressionResource, Integer> createExpression(Object exprValue) {
+        return createExpression(exprValue, b -> {});
+    }
+
+    private Predicate<MobSetting.ExpressionResource> createConditionExpression(Object exprValue) {
+        Function<MobSetting.ExpressionResource, Integer> expr = createExpression(exprValue, b -> b.operator(OperatorsComparison.getOperators()));
+        return r -> expr.apply(r) != 0.0;
+    }
+
+    private Function<MobSetting.ExpressionResource, Integer> createExpression(Object exprValue, Consumer<ExpressionBuilder> builder) {
         if (exprValue instanceof Number) {
             return s -> ((Number) exprValue).intValue();
         }
-        Expression expr = new ExpressionBuilder((String) exprValue)
-                .variables("land_players", "land_chunks", "wave", "online_players")
-                .build();
+        ExpressionBuilder exprBuilder = new ExpressionBuilder((String) exprValue)
+                .variables("land_players", "land_chunks", "wave", "online_players", "offline_players", "index", "count");
+        builder.accept(exprBuilder);
+        Expression expr = exprBuilder.build();
 
-        return spawner -> (int) Math.ceil(expr
-                .setVariable("land_players", spawner.getLand().getTrustedPlayers().size())
-                .setVariable("land_chunks", spawner.getLand().getChunksAmount())
-                .setVariable("wave", spawner.getWave())
-                .setVariable("online_players", spawner.getLand().getOnlinePlayers().size())
-                .evaluate());
+        return r -> {
+            if (expr.getVariableNames().contains("land_players"))
+                expr.setVariable("land_players", r.spawner().getLand().getTrustedPlayers().size());
+            if (expr.getVariableNames().contains("land_chunks"))
+                expr.setVariable("land_chunks", r.spawner().getLand().getChunksAmount());
+            if (expr.getVariableNames().contains("wave"))
+                expr.setVariable("wave", r.spawner().getWave());
+            if (expr.getVariableNames().contains("online_players"))
+                expr.setVariable("online_players", r.spawner().getLand().getOnlinePlayers().size());
+            if (expr.getVariableNames().contains("offline_players"))
+                expr.setVariable("offline_players", r.spawner().getLand().getTrustedPlayers().size() - r.spawner().getLand().getOnlinePlayers().size());
+            if (expr.getVariableNames().contains("index"))
+                expr.setVariable("index", r.groupIndex());
+            if (expr.getVariableNames().contains("count"))
+                expr.setVariable("count", r.parentCount());
+            return (int) Math.ceil(expr.evaluate());
+        };
     }
 
     private List<MobSetting> getMobSettings(List<ConfigurationSection> config) {
         return config.stream().map(c -> new MobSetting(
-                createCountExpression(c.get("count")),
+                c.contains("condition") ? createConditionExpression(c.get("condition")) : r -> true,
+                parseConditionType(c.getString("children-condition-type", "one"), "children-condition-type"),
+                c.contains("count") ? createExpression(c.get("count")) : MobSetting.ExpressionResource::parentCount,
                 Optional.ofNullable(getConfigList(c, "enemies"))
                         .map(this::getMobEnemies)
-                        .orElse(Collections.emptyList())
+                        .orElse(null),
+                Optional.ofNullable(getConfigList(c, "children"))
+                        .map(this::getMobSettings)
+                        .orElse(null)
         )).toList();
     }
 
@@ -159,6 +188,15 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 c,
                 null
                 )).collect(Collectors.toList());
+    }
+
+    private MobSetting.ConditionType parseConditionType(String value, String location) {
+        try {
+            return MobSetting.ConditionType.valueOf(value.toUpperCase(Locale.ENGLISH));
+        } catch (IllegalArgumentException e) {
+            getLogger().warning("Invalid condition type: " + value + " (in " + location + ")");
+            return MobSetting.ConditionType.ONE;
+        }
     }
 
     //

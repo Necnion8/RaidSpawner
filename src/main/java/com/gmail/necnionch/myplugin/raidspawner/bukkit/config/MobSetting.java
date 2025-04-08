@@ -5,13 +5,54 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 public record MobSetting(
-        Function<RaidSpawner, Integer> count,
-        List<Enemy> enemies
+        Predicate<ExpressionResource> condition,
+        ConditionType conditionType,
+        Function<ExpressionResource, Integer> count,
+        @Nullable List<Enemy> enemies,
+        @Nullable List<MobSetting> children
 ) {
+
+    public @Nullable List<Enemy> selectEnemies(int count, Random random) {
+        if (enemies == null)
+            return null;
+
+        int total = enemies.stream()
+                .mapToInt(Enemy::getPriority)
+                .sum();
+
+        List<Enemy> result = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            float target = random.nextFloat() * total;
+            int current = 0;
+
+            for (Enemy enemy : enemies) {
+                current += enemy.getPriority();
+                if (target <= current) {
+                    result.add(enemy);
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    public record ExpressionResource(
+            RaidSpawner spawner,
+            int groupIndex,
+            int parentCount
+    ) {}
+
+    public enum ConditionType {
+        ALL, ONE,
+    }
+
 
     public static class Enemy {
 

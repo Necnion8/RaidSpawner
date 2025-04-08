@@ -15,6 +15,7 @@ public record RaidSetting(
         @Nullable String world,
         int mobsDistanceChunks,
         int mobsGlowingEnemies,
+        MobSetting.ConditionType mobsConditionType,
         List<MobSetting> mobs
 ) {
 
@@ -28,8 +29,13 @@ public record RaidSetting(
             null,
             2,
             10,
+            MobSetting.ConditionType.ALL,
             Collections.singletonList(new MobSetting(
-                    s -> 3, Collections.emptyList()
+                    r -> true,
+                    MobSetting.ConditionType.ONE,
+                    r -> 3,
+                    Collections.emptyList(),
+                    Collections.emptyList()
             ))
     );
 

@@ -341,18 +341,23 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         });
 
         // set enemy provider
-        int mobsIndex = -1;
+        int index = -1;
         for (MobSetting mobSetting : pluginConfig.getRaidSetting().mobs()) {
-            mobsIndex++;
-            int enemiesIndex = -1;
-            for (MobSetting.Enemy enemyItem : mobSetting.enemies()) {
-                enemiesIndex++;
+            index++;
+            initMobProviders(mobSetting, index + "");
+        }
+    }
 
+    private void initMobProviders(MobSetting setting, String location) {
+        int index = -1;
+        if (setting.enemies() != null) {
+            for (MobSetting.Enemy enemyItem : setting.enemies()) {
+                index++;
                 EnemyProvider<?> provider = enemyProviders().get(enemyItem.getSource());
                 enemyItem.setProvider(provider);
 
                 if (provider == null) {
-                    getLogger().severe("Invalid enemy config: (mob=" + mobsIndex + ",enemy=" + enemiesIndex + ") " + enemyItem.getSource() + ": Unavailable provider");
+                    getLogger().severe("Invalid enemy config: (mob=" + location + ",enemy=" + index + ") " + enemyItem.getSource() + ": Unavailable provider");
                     continue;
                 }
 
@@ -360,16 +365,24 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 try {
                     valid = provider.isValid(enemyItem.getConfig());
                 } catch (EnemyProvider.ConfigurationError e) {
-                    getLogger().severe("Invalid enemy config: (mob=" + mobsIndex + ",enemy=" + enemiesIndex + ") " + provider.getSource() + ": " + e.getMessage());
+                    getLogger().severe("Invalid enemy config: (mob=" + location + ",enemy=" + index + ") " + provider.getSource() + ": " + e.getMessage());
                     continue;
                 } catch (Throwable e) {
-                    getLogger().log(Level.SEVERE, "Error enemy config: (mob=" + mobsIndex + ",enemy=" + enemiesIndex + ") " + provider.getSource(), e);
+                    getLogger().log(Level.SEVERE, "Error enemy config: (mob=" + location + ",enemy=" + index + ") " + provider.getSource(), e);
                     continue;
                 }
 
                 if (!valid) {
-                    getLogger().severe("Invalid enemy config: (mob=" + mobsIndex + ",enemy=" + enemiesIndex + ") " + provider.getSource());
+                    getLogger().severe("Invalid enemy config: (mob=" + location + ",enemy=" + index + ") " + provider.getSource());
                 }
+            }
+        }
+
+        index = -1;
+        if (setting.children() != null) {
+            for (MobSetting child : setting.children()) {
+                index++;
+                initMobProviders(child, location + "." + index);
             }
         }
     }
@@ -593,16 +606,21 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             throw new IllegalStateException("Already running raids");
 
         clearRaidAll(null, null);
-        findLandChunk(getLandAPI().getLands())
-                .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
 
-        RaidSpawnsPreStartEvent myEvent = new RaidSpawnsPreStartEvent(raids.values(), reason);
-        getServer().getPluginManager().callEvent(myEvent);
-        if (myEvent.isCancelled() || raids.isEmpty()) {
-            return false;
+        try {
+            findLandChunk(getLandAPI().getLands())
+                    .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
+
+            RaidSpawnsPreStartEvent myEvent = new RaidSpawnsPreStartEvent(raids.values(), reason);
+            getServer().getPluginManager().callEvent(myEvent);
+            if (myEvent.isCancelled() || raids.isEmpty()) {
+                return false;
+            }
+
+            processRaidStart();
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
         }
-
-        processRaidStart();
         return true;
     }
 
@@ -640,10 +658,15 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         if (world == null)
             throw new IllegalArgumentException("Land '" + land.getName() + "` spawn world is null");
 
-        findLandChunk(Collections.singleton(land))
-                .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
+        try {
+            findLandChunk(Collections.singleton(land))
+                    .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
 
-        processRaidStart();
+            processRaidStart();
+            
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
         return true;
     }
 

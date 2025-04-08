@@ -462,34 +462,52 @@ public class RaidSpawner {
             unloadEnemy(enemy);
             return true;
         });
+        summonEnemyMobs();
 
-        // select enemy
-        RaidSpawnerUtil.d(() -> "setting.mobs -> " + setting.mobs().size() + " | land: " + land.getName());
-        List<MobSetting.Enemy> enemySettings = new ArrayList<>();
-        for (MobSetting mobSetting : setting.mobs()) {
-            List<MobSetting.Enemy> enemies = mobSetting.enemies();
-            RaidSpawnerUtil.d(() -> "  mob.enemies -> " + enemies.size());
-            if (enemies.isEmpty())
-                continue;
+        // set wave timer
+        if (currentWaveMaxTimer != null) {
+            currentWaveMaxTimer.cancel();
+        }
+        if (0 < setting.maxWaveTimeMinutes()) {
+            currentWaveMaxTimer = RaidSpawnerUtil.runTaskLater(this::onWaveMaxTimer, setting.maxWaveTimeMinutes() * 60L * 20);
+        }
+    }
 
-            int total = enemies.stream()
-                    .mapToInt(MobSetting.Enemy::getPriority)
-                    .sum();
+    private List<MobSetting.Enemy> selectEnemies(int index, MobSetting setting, int parentCount, @Nullable MobSetting parentSetting) {
+        List<MobSetting.Enemy> select = new ArrayList<>();
 
-            int count = mobSetting.count().apply(this);
-            RaidSpawnerUtil.d(() -> "  spawn count: " + count);
-            for (int i = 0; i < count; i++) {
-                float target = random.nextFloat() * total;
-                int current = 0;
+        MobSetting.ExpressionResource pExprResource = new MobSetting.ExpressionResource(this, index, parentCount);
+        int count = setting.count().apply(pExprResource);
 
-                for (MobSetting.Enemy enemy : enemies) {
-                    current += enemy.getPriority();
-                    if (target <= current) {
-                        enemySettings.add(enemy);
+        if (setting.children() != null && !setting.children().isEmpty()) {
+            for (int i = 0; i < setting.children().size(); i++) {
+                MobSetting child = setting.children().get(i);
+
+                if (i + 1 == setting.children().size() || child.condition().test(new MobSetting.ExpressionResource(this, index, count))) {
+                    select.addAll(selectEnemies(i, child, count, setting));
+                    if (MobSetting.ConditionType.ONE.equals(setting.conditionType()))
                         break;
-                    }
                 }
             }
+
+        } else {
+            List<MobSetting.Enemy> enemies = setting.selectEnemies(count, random);
+            if (enemies == null && parentSetting != null) {
+                enemies = parentSetting.selectEnemies(count, random);
+            }
+            if (enemies != null) {
+                select.addAll(enemies);
+            }
+        }
+        return select;
+    }
+
+    private void summonEnemyMobs() {
+        // select enemy
+        List<MobSetting.Enemy> enemySettings = new ArrayList<>();
+        for (int i = 0; i < setting.mobs().size(); i++) {
+            MobSetting mobSetting = setting.mobs().get(i);
+            enemySettings.addAll(selectEnemies(i, mobSetting, 1, null));
         }
 
         // get provider
@@ -544,14 +562,6 @@ public class RaidSpawner {
                     break;
                 }
             }
-        }
-
-        // set wave timer
-        if (currentWaveMaxTimer != null) {
-            currentWaveMaxTimer.cancel();
-        }
-        if (0 < setting.maxWaveTimeMinutes()) {
-            currentWaveMaxTimer = RaidSpawnerUtil.runTaskLater(this::onWaveMaxTimer, setting.maxWaveTimeMinutes() * 60L * 20);
         }
     }
 

@@ -58,16 +58,55 @@ raid:
   mobs-distance-chunks: 2
   # モブに発光効果を付与する敵残存数
   mobs-glowing-enemies: 10
+
+  # モブ設定のグループ条件タイプ (省略してall)
+  # - all  条件を満たすグループを全て
+  # - one  条件を満たす最初のグループ
+  mobs-condition-type: "all"
   # モブ設定
+  # ※ 式で使用できる値:
+  #   - online_players  現在のオンライン人数
+  #   - offline_players 現在のオフライン人数
+  #   - land_players    Landの全人数
+  #   - land_chunks     Landの所有チャンク数
+  #   - wave            現在のウェーブ数
+  #   - index           現在のセクションの番号
+  #   - count           現在のセクションの親の count 値
   mobs:
-    # 式に使用できる値: online_players, land_players, land_chunks, wave
-    - count: "ceil( land_players * (3 + land_chunks * 1.5) * (1 + 0.1 * wave) )"  # or number value
-      # スポーン対象
+      # このグループが適用される条件式 (省略して常に有効)
+    - condition: "1"
+      # スポーン数を数値またはプレイヤー人数などを元に算出する式で適用します (省略して現在のcount値を適用)
+      count: "ceil( land_players * (3 + land_chunks * 1.5) * (1 + 0.1 * wave) )"  # or number value
+      # スポーン対象を定義します
       enemies:
         - source: mythicmobs
           type: MOB_TYPE
           level: 1
-          priority: 10
+          priority: 1
+      # 子グループの条件タイプ (省略してone)
+      # - all  条件を満たすグループを全て
+      # - one  条件を満たす最初のグループ
+      children-condition-type: "one"
+      # 条件に基づいて選択するモブグループを切り替えます (省略可)
+      # いずれにもマッチしない場合は最後の条件が有効として適用します
+      children:
+          # このグループが適用される条件式 (省略して常に有効)
+        - condition: "count <= 50"
+          # スポーン数を数値またはプレイヤー人数などを元に算出する式で適用します (省略して現在のcount値を適用)
+          count: null
+          # スポーン対象を上書きできます (省略して親enemiesを適用)
+          enemies: null
+          # 条件に基づいて選択するモブを切り替えます (省略可)
+          children: []
+
+        - condition: "count <= 150"
+          count: "count / 3"
+          enemies:
+            - source: mythicmobs
+              type: MOB_TYPE
+              level: 2
+              priority: 1
+          children: []
 
 # 成功報酬設定
 event-win-rewards:
