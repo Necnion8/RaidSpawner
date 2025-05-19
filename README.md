@@ -15,13 +15,13 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
 | コマンド                                | サブコマンド / 説明                                             | 権限                                  | デフォルト |
 |-------------------------------------|---------------------------------------------------------|:------------------------------------|:-----:|
 | /raidspawner<br><sup>管理者用コマンド</sup> |                                                         | raidspawner.command.raidspawner     | OPのみ  |
-| 〃                                   | status<br><sup>プラグインや襲撃の状態を表示</sup>                     | 〃                                   |   〃   |
+| 〃                                   | status *or* s<br><sup>プラグインや襲撃の状態を表示</sup>              | 〃                                   |   〃   |
 | 〃                                   | reload<br><sup>設定ファイルの再読み込み</sup>                       | 〃                                   |   〃   |
 | 〃                                   | chunkmap<br><sup>チャンク表示マップを与えます</sup>                   | 〃                                   |   〃   |
 | 〃                                   | start (land)<br><sup>襲撃イベントを手動で開始</sup>                 | 〃                                   |   〃   |
-| 〃                                   | startall<br><sup>襲撃イベントを手動で開始</sup>                     | 〃                                   |   〃   |
+| 〃                                   | allstart<br><sup>襲撃イベントを手動で開始</sup>                     | 〃                                   |   〃   |
 | 〃                                   | stop (land) <cancel/win/lose><br><sup>襲撃イベントの強制終了</sup> | 〃                                   |   〃   |
-| 〃                                   | stopall <cancel/win/lose><br><sup>襲撃イベントの強制終了</sup>     | 〃                                   |   〃   |
+| 〃                                   | allstop <cancel/win/lose><br><sup>襲撃イベントの強制終了</sup>     | 〃                                   |   〃   |
 | 〃                                   | setwave (land) (wave)<br><sup>現在のウェーブ数を変更</sup>         | 〃                                   |   〃   |
 | 〃                                   | nextwave (land)<br><sup>現在のウェーブをスキップ</sup>              | 〃                                   |   〃   |
 |                                     | <sup>Land未参加でもキックしない</sup>                              | raidspawner.bypass.non-members-kick |   〃   |

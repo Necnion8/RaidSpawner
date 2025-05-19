@@ -3,6 +3,7 @@ version: '${version}'
 main: com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin
 api-version: '1.17'
 author: Necnion8
+website: "https://github.com/Necnion8/RaidSpawner"
 
 depend:
   - Lands
@@ -16,6 +17,7 @@ softdepend:
 
 commands:
   raidspawner:
+    aliases: [rspa]
     permission: raidspawner.command.raidspawner
 
 permissions:

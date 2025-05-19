@@ -59,9 +59,9 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         try {
-            if (1 <= args.length && "status".equalsIgnoreCase(args[0])) {
+            if (1 <= args.length && ("status".equalsIgnoreCase(args[0]) || "s".equalsIgnoreCase(args[0]))) {
                 executeStatusCommand(sender);
-            } else if (1 <= args.length && "startall".equalsIgnoreCase(args[0])) {
+            } else if (1 <= args.length && ("startall".equalsIgnoreCase(args[0]) || "allstart".equalsIgnoreCase(args[0]))) {
                 executeStartAllCommand(sender);
             } else if (1 <= args.length && "start".equalsIgnoreCase(args[0])) {
                 Land land = getLandOrError(1, args);
@@ -78,7 +78,7 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
                     throw new ArgumentError(Lang.COMMAND_SETWAVE_NOT_SPECIFIED_WAVE);
                 }
                 executeSetWaveCommand(sender, land, wave);
-            } else if (1 <= args.length && "stopall".equalsIgnoreCase(args[0])) {
+            } else if (1 <= args.length && ("stopall".equalsIgnoreCase(args[0]) || "allstop".equalsIgnoreCase(args[0]))) {
                 executeStopAllCommand(sender, parseEndResultOrError(2 <= args.length ? args[1] : "cancel"));
             } else if (1 <= args.length && "stop".equalsIgnoreCase(args[0])) {
                 Land land = getLandOrError(1, args);
@@ -90,16 +90,17 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
             } else if (1 <= args.length && "tphere".equalsIgnoreCase(args[0])) {
                 executeTpHereCommand(sender);
             } else {
-                sender.sendMessage(ChatColor.DARK_GRAY + "## " + ChatColor.RED + "RaidSpawner " + ChatColor.DARK_GRAY + "##");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "status");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "reload");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "chunkmap");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "start (land)");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "startall");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "stop (land) " + ChatColor.GRAY + "<cancel/win/lose>");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "stopall " + ChatColor.GRAY + "<cancel/win/lose>");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "setwave (land) (wave)");
-                sender.sendMessage(ChatColor.GRAY + " /raidspawner " + ChatColor.WHITE + "nextwave (land)");
+                String versionText = "v" + ((RaidSpawnerPlugin) api).getDescription().getVersion();
+                sender.sendMessage(ChatColor.DARK_RED + "[" + ChatColor.DARK_GRAY + "##" + ChatColor.DARK_RED + "] " + ChatColor.RED + "RaidSpawner " + ChatColor.GRAY + versionText + ChatColor.DARK_RED + " [" + ChatColor.DARK_GRAY + "##" + ChatColor.DARK_RED + "]");
+                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + ChatColor.UNDERLINE + "s" + ChatColor.WHITE + "tatus");
+                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + "chunkmap");
+                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + "reload");
+                sender.sendMessage(ChatColor.DARK_PURPLE + " /" + label + " " + ChatColor.WHITE + "start " + ChatColor.YELLOW + "(land)");
+                sender.sendMessage(ChatColor.DARK_PURPLE + " /" + label + " " + ChatColor.WHITE + "allstart");
+                sender.sendMessage(ChatColor.DARK_PURPLE + " /" + label + " " + ChatColor.WHITE + "stop " + ChatColor.YELLOW + "(land) " + ChatColor.GRAY + "<cancel/win/lose>");
+                sender.sendMessage(ChatColor.DARK_PURPLE + " /" + label + " " + ChatColor.WHITE + "allstop " + ChatColor.GRAY + "<cancel/win/lose>");
+                sender.sendMessage(ChatColor.DARK_GREEN + " /" + label + " " + ChatColor.WHITE + "setwave " + ChatColor.YELLOW + "(land) (wave)");
+                sender.sendMessage(ChatColor.DARK_GREEN + " /" + label + " " + ChatColor.WHITE + "nextwave " + ChatColor.YELLOW + "(land)");
             }
 
         } catch (ArgumentError e) {
@@ -301,7 +302,7 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (1 == args.length) {
-            return Stream.of("status", "reload", "chunkmap", "start", "startall", "stop", "stopall", "nextwave", "setwave")
+            return Stream.of("status", "reload", "chunkmap", "start", "startall", "stop", "stopall", "nextwave", "setwave", "allstart", "allstop")
                     .filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
         } else if (2 == args.length && args[0].equalsIgnoreCase("start")) {
@@ -316,10 +317,11 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
                     .map(Land::getName)
                     .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();
-        } else if ((3 == args.length && args[0].equalsIgnoreCase("stop")) || (2 == args.length && args[0].equalsIgnoreCase("stopall"))) {
+        } else if ((3 == args.length && args[0].equalsIgnoreCase("stop")) || (2 == args.length && (args[0].equalsIgnoreCase("stopall") || args[0].equalsIgnoreCase("allstop")))) {
             return Stream.of(RaidEndResult.values())
                     .map(Enum::name)
-                    .filter(s -> s.startsWith(args[args.length - 1].toUpperCase(Locale.ROOT)))
+                    .map(String::toLowerCase)
+                    .filter(s -> s.startsWith(args[args.length - 1].toLowerCase(Locale.ROOT)))
                     .toList();
         }
         return Collections.emptyList();
