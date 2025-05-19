@@ -26,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 public interface RaidSpawnerAPI {
 
@@ -38,6 +39,11 @@ public interface RaidSpawnerAPI {
      * プラグインの言語を返します
      */
     RaidSpawnerLang getPluginLang();
+
+    /**
+     * プラグインに設定されているタイムゾーンを返します
+     */
+    TimeZone getTimeZone();
 
     /**
      * 現在の襲撃中および敗北した {@link RaidSpawner} を返します<br>

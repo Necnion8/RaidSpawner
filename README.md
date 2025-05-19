@@ -32,7 +32,7 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
 - `real-clock` - 現実時刻
   - `time-hours` - 設定: 時間
   - `time-minutes` - 設定: 分
-  - `timezone` - タイムゾーン または `local` でシステム時刻
+  - `timezone` - (省略可) タイムゾーン(`Asia/Tokyo`など) または `local` でシステム時刻
 - `timer` - タイマー
   - `time-minutes` - 設定: 分
 

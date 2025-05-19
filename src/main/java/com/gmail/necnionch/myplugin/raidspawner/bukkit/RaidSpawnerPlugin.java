@@ -195,6 +195,11 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         return pluginLang;
     }
 
+    @Override
+    public TimeZone getTimeZone() {
+        return pluginConfig.getTimeZone();
+    }
+
     private Function<Land, World> getLandSpawnOrConfigWorld() throws IllegalArgumentException {
         String worldName = pluginConfig.getRaidSetting().world();
         if (worldName != null) {
@@ -389,7 +394,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
     public void setupInternalProviders() {
         Stream.of(
-                new RealClockCondition.Provider(),
+                new RealClockCondition.Provider(this),
                 new TimerCondition.Provider()
         )
                 .forEachOrdered(cond -> conditionProviders.put(cond.getType(), cond));

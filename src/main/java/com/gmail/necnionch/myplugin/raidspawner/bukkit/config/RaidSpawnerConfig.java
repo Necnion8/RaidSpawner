@@ -12,6 +12,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -22,6 +24,7 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
 
     private boolean enableDebug;
     private RaidSetting raidSetting = RaidSetting.DEFAULTS;
+    private TimeZone timeZone = TimeZone.getDefault();
 
     public RaidSpawnerConfig(JavaPlugin plugin) {
         super(plugin);
@@ -30,6 +33,20 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
     @Override
     public boolean onLoaded(FileConfiguration configuration) {
         enableDebug = configuration.getBoolean("debug", false);
+
+        String timezoneName = configuration.getString("general.timezone", "local");
+        ZoneId zone;
+        if ("local".equalsIgnoreCase(timezoneName)) {
+            zone = ZoneId.systemDefault();
+        } else {
+            try {
+                zone = ZoneId.of(timezoneName);
+            } catch (DateTimeException e) {
+                getLogger().warning("Invalid timezone name: " + timezoneName);
+                zone = ZoneId.systemDefault();
+            }
+        }
+        timeZone = TimeZone.getTimeZone(zone);
 
         ConfigurationSection config = Optional.ofNullable(configuration.getConfigurationSection("raid"))
                 .orElseGet(MemoryConfiguration::new);
@@ -203,6 +220,10 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
 
     public boolean isEnableDebug() {
         return enableDebug;
+    }
+
+    public TimeZone getTimeZone() {
+        return timeZone;
     }
 
     public RaidSetting getRaidSetting() {
