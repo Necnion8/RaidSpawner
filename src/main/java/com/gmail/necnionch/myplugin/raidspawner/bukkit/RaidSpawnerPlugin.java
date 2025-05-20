@@ -685,17 +685,17 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 }
             }
 
-            // online players
-            for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
-                if (spawner.getLand().getOnlinePlayers().isEmpty()) {
-                    logDebug(() -> "No online players | land: " + spawner.getLand().getName());
-                    spawner.clearSetLose(RaidEndReason.NO_PLAYERS);
-                }
-            }
-
             // 開始アクションの実行
             for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
                 executeActions(spawner, spawner.getRewards().startActions());
+            }
+
+            // online players
+            for (RaidSpawner spawner : new ArrayList<>(raids.values())) {
+                if (spawner.isRunning() && spawner.getLand().getOnlinePlayers().isEmpty()) {
+                    logDebug(() -> "No online players | land: " + spawner.getLand().getName());
+                    spawner.clearSetLose(RaidEndReason.NO_PLAYERS);
+                }
             }
 
         });
@@ -706,7 +706,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         }
         gameEndTimer = getServer().getScheduler().runTaskLater(this, () -> {
             logDebug(() -> "Raid event timeout");
-            new ArrayList<>(raids.values()).forEach(s -> s.clearSetLose(RaidEndReason.TIMEOUT));
+            new ArrayList<>(raids.values()).stream()
+                    .filter(RaidSpawner::isRunning)
+                    .forEach(s -> s.clearSetLose(RaidEndReason.TIMEOUT));
         }, 20L * 60 * pluginConfig.getRaidSetting().eventTimeMinutes());
     }
 
@@ -918,7 +920,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         Player player = event.getPlayer();
 
         String groupName = pluginConfig.getRaidSetting().luckPermsGroup();
-        if (groupName != null && RaidSpawnerUtil.isRaidPlayer(player)) {
+        if (groupName != null && RaidSpawnerUtil.isRunningRaidPlayer(player)) {
             PluginBridge.getValid(LuckPermsBridge.class).ifPresent(perms -> {
                 try {
                     perms.addPermissionGroup(player, groupName);
@@ -955,10 +957,12 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 spawner.getBossBar().removePlayer(player);
             }
 
-            Land land = spawner.getLand();
-            if (land.getOnlinePlayers().isEmpty()) {
-                logDebug(() -> "No online players | land: " + spawner.getLand().getName());
-                spawner.clearSetLose(RaidEndReason.NO_PLAYERS);
+            if (spawner.isRunning()) {
+                Land land = spawner.getLand();
+                if (land.getOnlinePlayers().isEmpty()) {
+                    logDebug(() -> "No online players | land: " + spawner.getLand().getName());
+                    spawner.clearSetLose(RaidEndReason.NO_PLAYERS);
+                }
             }
         }
     }

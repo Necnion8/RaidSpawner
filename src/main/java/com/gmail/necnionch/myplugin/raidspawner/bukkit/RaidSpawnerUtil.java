@@ -64,15 +64,18 @@ public class RaidSpawnerUtil {
                 .toList();
     }
 
-    public static boolean isRaidPlayer(UUID playerId) {
-        Set<Land> raids = getRaids().stream().map(RaidSpawner::getLand).collect(Collectors.toSet());
+    public static boolean isRunningRaidPlayer(UUID playerId) {
+        Set<Land> raids = getPlugin().getCurrentRaids().values().stream()
+                .filter(RaidSpawner::isRunning)
+                .map(RaidSpawner::getLand)
+                .collect(Collectors.toSet());
         return Optional.ofNullable(getPlugin().getLandAPI().getLandPlayer(playerId))
                 .map(lp -> lp.getLands().stream().anyMatch(raids::contains))
                 .orElse(false);
     }
 
-    public static boolean isRaidPlayer(OfflinePlayer player) {
-        return isRaidPlayer(player.getUniqueId());
+    public static boolean isRunningRaidPlayer(OfflinePlayer player) {
+        return isRunningRaidPlayer(player.getUniqueId());
     }
 
 }

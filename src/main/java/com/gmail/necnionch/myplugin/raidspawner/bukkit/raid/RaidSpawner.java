@@ -387,7 +387,7 @@ public class RaidSpawner {
     }
 
     public void onDeathPlayer(Player player) {
-        if (!containsPlayer(player))
+        if (!running || !containsPlayer(player))
             return;
 
         if (isEnableDeathCountTickets() && (setting.tickets() - ++deathCount) <= 0) {
