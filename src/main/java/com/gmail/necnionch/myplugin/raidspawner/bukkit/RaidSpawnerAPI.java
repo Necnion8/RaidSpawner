@@ -8,6 +8,7 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.Condition;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionProvider;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerData;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.RaidSpawnerLang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.map.ChunkViewRenderer;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
@@ -34,6 +35,11 @@ public interface RaidSpawnerAPI {
      * プラグインの設定を返します
      */
     RaidSpawnerConfig getPluginConfig();
+
+    /**
+     * プラグインのデータを返します
+     */
+    RaidSpawnerData getPluginData();
 
     /**
      * プラグインの言語を返します
@@ -63,11 +69,23 @@ public interface RaidSpawnerAPI {
 
     /**
      * 全てのLandで襲撃イベントを開始します
+     * @param excludePausedLands スケジュールによるイベント開始が一時停止しているLandも含めます
      * @return いずれかのLandでイベントが開始できたら true
      * @throws IllegalStateException すでにいずれか襲撃イベントが開始している
      * @throws IllegalArgumentException Landスポーン地点が設定されていない
      */
-    boolean startRaidAll(@Nullable Condition reason) throws IllegalArgumentException ;
+    boolean startRaidAll(@Nullable Condition reason, boolean excludePausedLands) throws IllegalArgumentException;
+
+    /**
+     * 全てのLandで襲撃イベントを開始します
+     * @return いずれかのLandでイベントが開始できたら true
+     * @throws IllegalStateException すでにいずれか襲撃イベントが開始している
+     * @throws IllegalArgumentException Landスポーン地点が設定されていない
+     * @see RaidSpawnerAPI#startRaidAll(Condition, boolean)
+     */
+    default boolean startRaidAll(@Nullable Condition reason) throws IllegalArgumentException {
+        return startRaidAll(reason, false);
+    }
 
     /**
      * 実行中の襲撃イベントをすべて中止します

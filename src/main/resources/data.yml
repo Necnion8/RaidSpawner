@@ -1,0 +1,12 @@
+
+# 襲撃イベントの自動開始を一時停止する日付設定
+# フォーマット: 2025-05-20
+pause-event:
+  # 全てのLandに適用
+  all: null
+  # 各Landの個別設定
+  # e.g.
+  #   lands:
+  #     "OnionLand": 2025-05-31
+  #     "CatLand": 2025-06-30
+  lands:

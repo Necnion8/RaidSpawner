@@ -2,10 +2,7 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.action.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.*;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.Actions;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.EventStart;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
-import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerConfig;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.*;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsAllEndEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnsPreStartEvent;
@@ -45,6 +42,9 @@ import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -53,6 +53,7 @@ import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, RaidSpawnerAPI {
     private final RaidSpawnerConfig pluginConfig = new RaidSpawnerConfig(this);
+    private final RaidSpawnerData pluginData = new RaidSpawnerData(this);
     private final RaidSpawnerLang pluginLang = new RaidSpawnerLang(this);
     private final Timer timer = new Timer("RaidSpawner-Timer", true);
     private final Map<String, ConditionProvider<?>> conditionProviders = new HashMap<>();
@@ -91,6 +92,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             getServer().getScheduler().runTask(this, () -> getLogger().warning(
                     "There is a configuration error, please fix configuration and reload."));
         }
+        pluginData.load();
         pluginLang.load();
 
         Optional.ofNullable(getCommand("raidspawner"))
@@ -188,6 +190,11 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     @Override
     public RaidSpawnerConfig getPluginConfig() {
         return pluginConfig;
+    }
+
+    @Override
+    public RaidSpawnerData getPluginData() {
+        return pluginData;
     }
 
     @Override
@@ -319,6 +326,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
     public void reloadPluginConfig() {
         pluginConfig.load();
+        pluginData.load();
         pluginLang.load();
 
         enableDebug = pluginConfig.isEnableDebug();
@@ -534,19 +542,24 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         clearStartConditions();
         initStartConditions();
 
-        List<Long> delays = startConditions.stream()
-                .map(ConditionWrapper::start)
-                .filter(Objects::nonNull)
-                .toList();
+        long minDelay = Long.MAX_VALUE;
+        ConditionWrapper minCondition = null;
+        for (ConditionWrapper condition : startConditions) {
+            Long delay = condition.start();
+            if (delay != null && delay < minDelay) {
+                minDelay = delay;
+                minCondition = condition;
+            }
+        }
 
         EventStart.PreNotify preNotify = pluginConfig.getStartPreNotify();
-        if (!delays.isEmpty() && preNotify.enable()) {
-            delays.stream().mapToLong(v -> v).min().ifPresent(delay -> {
-                delay = (Math.round(delay / 1000d) - preNotify.minutes() * 60L) * 20;
-                if (0 < delay) {
-                    gamePreStartTimer = getServer().getScheduler().runTaskLater(this, this::onPreStartNotify, delay);
-                }
-            });
+        if (minCondition != null && preNotify.enable()) {
+            long delay = (Math.round(minDelay / 1000d) - preNotify.minutes() * 60L) * 20;
+            if (0 < delay) {
+                ConditionWrapper condition = minCondition;
+                long starts = minDelay;
+                gamePreStartTimer = getServer().getScheduler().runTaskLater(this, () -> onPreStartNotify(condition, starts), delay);
+            }
         }
     }
 
@@ -569,18 +582,46 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     }
 
     private void onStartTrigger(ConditionWrapper condition) {
+        logDebug(() -> "on start trigger: " + condition.getType());
+        LocalDate pauseDate = pluginData.getEventPauseDate();
+        System.out.println("raidTime: " + LocalDate.now(getTimeZone().toZoneId()));
+        System.out.println("pauseDate: " + pauseDate);
+        if (pauseDate != null && !pauseDate.isBefore(LocalDate.now(getTimeZone().toZoneId()))) {
+            logDebug(() -> "Paused date (cancelled)");
+            startStartConditions();  // reschedule
+            return;
+        }
+
         if (isRunningRaid()) {
-            getLogger().warning("Already running raids (ignored)");
+            logDebug(() -> "Already running raids (ignored)");
             return;
         }
 
         clearStartConditions();
-        startRaidAll(condition.getCondition());
+        try {
+            if (startRaidAll(condition.getCondition(), true))
+                return;
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE, "Exception in start raid all by scheduled trigger", e);
+        }
+
+        logDebug(() -> "rescheduling (startRaidAll failed)");
+        startStartConditions();
     }
 
-    private void onPreStartNotify() {
-        getLogger().info("Send pre-start notify");
-        RaidSpawnsPreStartNotifyEvent event = new RaidSpawnsPreStartNotifyEvent();
+    private void onPreStartNotify(ConditionWrapper condition, long startDelay) {
+        logDebug(() -> "on pre start notify: cond: " + condition.getType());
+
+        LocalDate raidTime = LocalDateTime.now().plus(startDelay, ChronoUnit.MILLIS).toLocalDate();
+        System.out.println("raidTime: " + raidTime + " (" + new Date(startDelay) + ")");
+        LocalDate pauseDate = pluginData.getEventPauseDate();
+        System.out.println("pauseDate: " + pauseDate);
+        if (pauseDate != null && !pauseDate.isBefore(raidTime)) {
+            logDebug(() -> "Paused date (ignored)");
+            return;
+        }
+
+        RaidSpawnsPreStartNotifyEvent event = new RaidSpawnsPreStartNotifyEvent(condition);
         getServer().getPluginManager().callEvent(event);
 
         if (event.isCancelled())
@@ -590,6 +631,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         if (!config.enable())
             return;
 
+        getLogger().info("Send pre-start notify");
         pluginLang.send(getServer().getOnlinePlayers(), Lang.PRESTART_NOTIFY_BROADCAST_MESSAGE);
     }
 
@@ -606,14 +648,25 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     }
 
     @Override
-    public boolean startRaidAll(@Nullable Condition reason) throws IllegalArgumentException {
+    public boolean startRaidAll(@Nullable Condition reason, boolean excludePausedLands) throws IllegalArgumentException {
         if (isRunningRaid())
             throw new IllegalStateException("Already running raids");
 
         clearRaidAll(null, null);
 
+        System.out.println("startRaidAll -> now: " + LocalDate.now(getTimeZone().toZoneId()));
+        Collection<Land> lands = excludePausedLands ? getLandAPI().getLands().stream()
+                .filter(land -> {
+                    LocalDate paused = pluginData.eventPauseLandsDate().get(land.getName());
+                    System.out.println("  land: " + land.getName() + " >> " + paused);
+                    return paused == null || paused.isBefore(LocalDate.now(getTimeZone().toZoneId()));
+                }).toList() : getLandAPI().getLands();
+
+        if (lands.isEmpty())
+            return false;
+
         try {
-            findLandChunk(getLandAPI().getLands())
+            findLandChunk(lands)
                     .forEach(result -> raids.put(result.land(), createRaidSpawner(result)));
 
             RaidSpawnsPreStartEvent myEvent = new RaidSpawnsPreStartEvent(raids.values(), reason);
