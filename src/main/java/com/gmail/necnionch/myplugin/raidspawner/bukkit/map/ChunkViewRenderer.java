@@ -4,6 +4,8 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerAPI;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.LandChunkFindResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -18,7 +20,7 @@ import java.util.*;
 @SuppressWarnings("deprecation")
 public class ChunkViewRenderer extends MapRenderer {
     public static final Set<ChunkViewRenderer> RENDERERS = new HashSet<>();
-    private static final Map<World, LandChunkFindResult> findResults = new HashMap<>();
+    private static final Multimap<World, LandChunkFindResult> findResults = ArrayListMultimap.create();
     private static final Map<World, Map<String, Land>> chunkLands = new HashMap<>();
     private final MinecraftFont font = MinecraftFont.Font;
     private final Map<Land, RaidSpawner> raids;
@@ -110,7 +112,7 @@ public class ChunkViewRenderer extends MapRenderer {
         canvas.setCursors(cursors);
     }
 
-    private void renderChunks(MapCanvas canvas, @Nullable LandChunkFindResult result, Location location) {
+    private void renderChunks(MapCanvas canvas, Collection<LandChunkFindResult> results, Location location) {
         for (int x = 0; x < 128; x++) {
             for (int y = 0; y < 128; y++) {
                 int posX = location.getBlockX() + (x - 64) * chunkScale;
@@ -120,11 +122,13 @@ public class ChunkViewRenderer extends MapRenderer {
 
                 boolean highlight = Math.floorMod(chunkX, 2) == Math.floorMod(chunkZ, 2);
                 byte colorValue = highlight ? MapPalette.GRAY_1 : MapPalette.GRAY_2;
-                if (result != null) {
+
+                for (LandChunkFindResult result : results) {
                     if (result.landChunks().stream().anyMatch(c -> c.getX() == chunkX && c.getZ() == chunkZ)) {
                         colorValue = highlight ? MapPalette.LIGHT_GREEN : MapPalette.DARK_GREEN;
                     } else if (result.raidChunks().stream().anyMatch(c -> c.x() == chunkX && c.z() == chunkZ)) {
                         colorValue = highlight ? MapPalette.matchColor(141, 127, 199) : MapPalette.matchColor(80, 44, 230);
+                        break;  // raid chunk color on top
                     }
                 }
                 canvas.setPixel(x, y, colorValue);
