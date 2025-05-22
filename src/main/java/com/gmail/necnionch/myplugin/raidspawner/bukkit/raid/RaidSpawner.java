@@ -643,7 +643,8 @@ public class RaidSpawner {
                 .replaceAll("%max_waves%", String.valueOf(getMaxWaves()))
                 .replaceAll("%enemies%", String.valueOf(currentEnemies.stream().filter(Enemy::isAlive).count()))
                 .replaceAll("%total_enemies%", String.valueOf(currentEnemies.size()))
-                .replaceAll("%tickets%", String.valueOf(getDeathCountTickets()));
+                .replaceAll("%tickets%", String.valueOf(getDeathCountTickets()))
+                .replaceAll("%land%", land.getName());
         bossBar.setTitle(text);
 
         // show
