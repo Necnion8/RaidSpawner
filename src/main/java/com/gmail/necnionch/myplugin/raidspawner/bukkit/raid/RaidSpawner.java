@@ -219,10 +219,9 @@ public class RaidSpawner {
      * 指定された座標にもっとも近いプレイヤーを返します
      */
     public Optional<Player> findNearestPlayer(Location location, @Nullable Predicate<Player> check) {
-        if (check == null)
-            check = p -> true;
         return land.getOnlinePlayers().stream()
-                .filter(check)
+                .filter(p -> p.getWorld().equals(location.getWorld()))
+                .filter(check != null ? check : p -> true)
                 .min(Comparator.comparingDouble(p -> p.getLocation().distance(location)));
     }
 
