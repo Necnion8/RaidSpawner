@@ -584,8 +584,6 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
     private void onStartTrigger(ConditionWrapper condition) {
         logDebug(() -> "on start trigger: " + condition.getType());
         LocalDate pauseDate = pluginData.getEventPauseDate();
-        System.out.println("raidTime: " + LocalDate.now(getTimeZone().toZoneId()));
-        System.out.println("pauseDate: " + pauseDate);
         if (pauseDate != null && !pauseDate.isBefore(LocalDate.now(getTimeZone().toZoneId()))) {
             logDebug(() -> "Paused date (cancelled)");
             startStartConditions();  // reschedule
@@ -613,9 +611,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         logDebug(() -> "on pre start notify: cond: " + condition.getType());
 
         LocalDate raidTime = LocalDateTime.now().plus(startDelay, ChronoUnit.MILLIS).toLocalDate();
-        System.out.println("raidTime: " + raidTime + " (" + new Date(startDelay) + ")");
         LocalDate pauseDate = pluginData.getEventPauseDate();
-        System.out.println("pauseDate: " + pauseDate);
         if (pauseDate != null && !pauseDate.isBefore(raidTime)) {
             logDebug(() -> "Paused date (ignored)");
             return;
@@ -654,11 +650,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
         clearRaidAll(null, null);
 
-        System.out.println("startRaidAll -> now: " + LocalDate.now(getTimeZone().toZoneId()));
         Collection<Land> lands = excludePausedLands ? getLandAPI().getLands().stream()
                 .filter(land -> {
                     LocalDate paused = pluginData.eventPauseLandsDate().get(land.getName());
-                    System.out.println("  land: " + land.getName() + " >> " + paused);
                     return paused == null || paused.isBefore(LocalDate.now(getTimeZone().toZoneId()));
                 }).toList() : getLandAPI().getLands();
 

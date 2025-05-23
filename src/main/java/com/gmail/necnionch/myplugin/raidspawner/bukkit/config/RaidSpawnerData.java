@@ -13,6 +13,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class RaidSpawnerData extends BukkitConfigDriver {
 
@@ -60,6 +61,15 @@ public class RaidSpawnerData extends BukkitConfigDriver {
         }
 
         return true;
+    }
+
+    @Override
+    public boolean save() {
+        config.set("pause-event.all", eventPauseAll != null ? eventPauseAll.format(DateTimeFormatter.ISO_LOCAL_DATE) : null);
+        config.set("pause-event.lands", eventPauseLands.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().format(DateTimeFormatter.ISO_LOCAL_DATE)))
+        );
+        return super.save();
     }
 
     @Nullable

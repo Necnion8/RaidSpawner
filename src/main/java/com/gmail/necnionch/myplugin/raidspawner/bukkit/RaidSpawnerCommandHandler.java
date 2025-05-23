@@ -1,6 +1,7 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.condition.ConditionWrapper;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSpawnerData;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.Lang;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.mob.Enemy;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndReason;
@@ -20,6 +21,11 @@ import org.bukkit.map.MapView;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoField;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -85,6 +91,54 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
                 executeStopCommand(sender, land, parseEndResultOrError(3 <= args.length ? args[2] : "cancel"));
             } else if (1 <= args.length && "chunkmap".equalsIgnoreCase(args[0])) {
                 executeGiveChunkMap(getPlayer(sender));
+            } else if (1 <= args.length && "setnoraidday".equalsIgnoreCase(args[0])) {
+                Land land;
+                int argsIndex = 1;
+                if (3 <= args.length) {
+                    land = getLandOrError(argsIndex++, args);
+                } else {
+                    land = null;  // all
+                }
+                if (args.length <= argsIndex)
+                    throw new ArgumentError(Lang.COMMAND_SETNORAIDDAY_INVALID_DAYS);
+
+                LocalDate now = LocalDate.now(api.getTimeZone().toZoneId());
+                LocalDate days;
+                try {
+                    int number = Integer.parseInt(args[argsIndex]);
+                    days = now.plusDays(number - 1);
+
+                    if (number == 0) {
+                        executeUnsetNoRaidDay(sender, land);
+                        return true;
+                    } else if (number < 0) {
+                        throw new ArgumentError(Lang.COMMAND_SETNORAIDDAY_INVALID_DAYS_OLD);
+                    }
+
+                } catch (NumberFormatException e) {
+                    DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                            .appendOptional(new DateTimeFormatterBuilder()
+                                    .appendPattern("yyyy/")
+                                    .toFormatter())
+                            .appendPattern("M/d")
+                            .parseDefaulting(ChronoField.YEAR_OF_ERA, now.getYear())
+                            .toFormatter();
+                    try {
+                        days = LocalDate.parse(args[argsIndex], formatter);
+                    } catch (DateTimeParseException e2) {
+                        throw new ArgumentError(Lang.COMMAND_SETNORAIDDAY_INVALID_DAYS);
+                    }
+
+                    if (args[argsIndex].split("/").length <= 2 && days.isBefore(now))
+                        days = days.plusYears(1);
+
+                    if (days.isBefore(now))
+                        throw new ArgumentError(Lang.COMMAND_SETNORAIDDAY_INVALID_DAYS_OLD);
+                }
+                executeSetNoRaidDay(sender, land, days);
+
+            } else if (1 <= args.length && "unsetnoraidday".equalsIgnoreCase(args[0])) {
+                executeUnsetNoRaidDay(sender, 2 <= args.length ? getLandOrError(1, args) : null);
             } else if (1 <= args.length && "reload".equalsIgnoreCase(args[0])) {
                 executeReloadCommand(sender);
             } else if (1 <= args.length && "tphere".equalsIgnoreCase(args[0])) {
@@ -92,15 +146,17 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
             } else {
                 String versionText = "v" + ((RaidSpawnerPlugin) api).getDescription().getVersion();
                 sender.sendMessage(ChatColor.DARK_RED + "[" + ChatColor.DARK_GRAY + "##" + ChatColor.DARK_RED + "] " + ChatColor.RED + "RaidSpawner " + ChatColor.GRAY + versionText + ChatColor.DARK_RED + " [" + ChatColor.DARK_GRAY + "##" + ChatColor.DARK_RED + "]");
-                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + ChatColor.UNDERLINE + "s" + ChatColor.WHITE + "tatus");
-                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + "chunkmap");
-                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + "reload");
                 sender.sendMessage(ChatColor.DARK_PURPLE + " /" + label + " " + ChatColor.WHITE + "start " + ChatColor.YELLOW + "(land)");
                 sender.sendMessage(ChatColor.DARK_PURPLE + " /" + label + " " + ChatColor.WHITE + "allstart");
                 sender.sendMessage(ChatColor.DARK_PURPLE + " /" + label + " " + ChatColor.WHITE + "stop " + ChatColor.YELLOW + "(land) " + ChatColor.GRAY + "<cancel/win/lose>");
                 sender.sendMessage(ChatColor.DARK_PURPLE + " /" + label + " " + ChatColor.WHITE + "allstop " + ChatColor.GRAY + "<cancel/win/lose>");
                 sender.sendMessage(ChatColor.DARK_GREEN + " /" + label + " " + ChatColor.WHITE + "setwave " + ChatColor.YELLOW + "(land) (wave)");
                 sender.sendMessage(ChatColor.DARK_GREEN + " /" + label + " " + ChatColor.WHITE + "nextwave " + ChatColor.YELLOW + "(land)");
+                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + ChatColor.UNDERLINE + "s" + ChatColor.WHITE + "tatus");
+                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + "chunkmap");
+                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + "setNoRaidDay " + ChatColor.YELLOW + "[land] (days)");
+                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + "unsetNoRaidDay " + ChatColor.YELLOW + "[land]");
+                sender.sendMessage(ChatColor.DARK_AQUA + " /" + label + " " + ChatColor.WHITE + "reload");
             }
 
         } catch (ArgumentError e) {
@@ -110,6 +166,29 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     }
 
     private void executeStatusCommand(CommandSender sender) {
+        RaidSpawnerData pluginData = api.getPluginData();
+
+        LocalDate now = LocalDate.now(api.getTimeZone().toZoneId());
+        List<Map.Entry<String, LocalDate>> pauseLands = pluginData.eventPauseLandsDate().entrySet().stream()
+                .filter(e -> !now.isAfter(e.getValue()))
+                .sorted(Map.Entry.comparingByValue(LocalDate::compareTo))
+                .toList();
+
+        if (pluginData.getEventPauseDate() != null || !pauseLands.isEmpty()) {
+            sender.sendMessage(ChatColor.DARK_GRAY + "=".repeat(30));
+            sender.sendMessage(ChatColor.GRAY + "=== " + ChatColor.GOLD + "No Raid Days");
+
+
+            LocalDate target = pluginData.getEventPauseDate();
+            if (target != null) {
+                sender.sendMessage("- " + ChatColor.DARK_PURPLE + "ALL: " + ((now.isAfter(target) ? ChatColor.DARK_GRAY + ChatColor.STRIKETHROUGH.toString() : ChatColor.WHITE) + formatDays(now, target)));
+            }
+
+            for (Map.Entry<String, LocalDate> e : pauseLands) {
+                sender.sendMessage("- " + ChatColor.YELLOW + e.getKey() + ": " + ChatColor.WHITE + formatDays(now, e.getValue()));
+            }
+        }
+
         sender.sendMessage(ChatColor.DARK_GRAY + "=".repeat(30));
         if (api.isRunningRaid()) {
             Collection<RaidSpawner> raids = api.getCurrentRaids().values();
@@ -247,6 +326,67 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
         api.getPluginLang().send(sender, Lang.COMMAND_STOP_ALL_RAID_DONE, result.name(), count);
     }
 
+    private void executeSetNoRaidDay(CommandSender sender, @Nullable Land land, LocalDate days) {
+        RaidSpawnerData pluginData = api.getPluginData();
+        LocalDate now = LocalDate.now(api.getTimeZone().toZoneId());
+        String daysText = formatDays(now, days);
+
+        if (land != null) {
+            LocalDate pause = pluginData.eventPauseLandsDate().get(land.getName());
+            if (pause == null || !pause.isEqual(days)) {
+                pluginData.eventPauseLandsDate().put(land.getName(), days);
+                pluginData.save();
+                api.getPluginLang().send(sender, Lang.COMMAND_SETNORAIDDAYS_DONE, land.getName(), daysText);
+            } else {
+                api.getPluginLang().send(sender, Lang.COMMAND_SETNORAIDDAYS_ALREADY, land.getName(), daysText);
+            }
+        } else {
+            LocalDate pause = pluginData.getEventPauseDate();
+            if (pause == null || !pause.isEqual(days)) {
+                pluginData.setEventPauseData(days);
+                pluginData.save();
+                api.getPluginLang().send(sender, Lang.COMMAND_SETNORAIDDAYS_ALL_DONE, daysText);
+            } else {
+                api.getPluginLang().send(sender, Lang.COMMAND_SETNORAIDDAYS_ALREADY_ALL, daysText);
+            }
+        }
+
+    }
+
+    private void executeUnsetNoRaidDay(CommandSender sender, @Nullable Land land) {
+        RaidSpawnerData pluginData = api.getPluginData();
+        LocalDate now = LocalDate.now(api.getTimeZone().toZoneId());
+
+        if (land != null) {
+            LocalDate pause = pluginData.eventPauseLandsDate().get(land.getName());
+
+            if (pluginData.eventPauseLandsDate().remove(land.getName()) != null) {
+                pluginData.save();
+            }
+
+            if (pause == null || now.isAfter(pause)) {
+                api.getPluginLang().send(sender, Lang.COMMAND_UNSETNORAIDDAYS_ALREADY, land.getName());
+            } else {
+                api.getPluginLang().send(sender, Lang.COMMAND_UNSETNORAIDDAYS_DONE, land.getName());
+            }
+
+        } else {
+            LocalDate pause = pluginData.getEventPauseDate();
+
+            if (pause != null) {
+                pluginData.setEventPauseData(null);
+                pluginData.save();
+            }
+
+            if (pause == null || now.isAfter(pause)) {
+                api.getPluginLang().send(sender, Lang.COMMAND_UNSETNORAIDDAYS_ALREADY_ALL);
+            } else {
+                api.getPluginLang().send(sender, Lang.COMMAND_UNSETNORAIDDAYS_ALL_DONE);
+            }
+
+        }
+    }
+
     private void executeGiveChunkMap(Player player) {
         PlayerInventory inv = player.getInventory();
 
@@ -302,9 +442,20 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (1 == args.length) {
-            return Stream.of("status", "reload", "chunkmap", "start", "startall", "stop", "stopall", "nextwave", "setwave", "allstart", "allstop")
+            List<String> list = Stream.of("status", "reload", "chunkmap", "start", "startall", "stop", "stopall", "nextwave", "setwave", "allstart", "allstop", "setnoraidday", "unsetnoraidday")
                     .filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
+
+            if (list.isEmpty() && !args[0].isEmpty()) {
+                 list = Stream.of("mapchunk", "tphere")
+                         .filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)))
+                         .collect(Collectors.toCollection(ArrayList::new));
+                 if ("noraidday".startsWith(args[0].toLowerCase(Locale.ROOT))) {
+                     list.add("setnoraidday");
+                     list.add("unsetnoraidday");
+                 }
+            }
+            return list;
         } else if (2 == args.length && args[0].equalsIgnoreCase("start")) {
             return api.getLands().stream()
                     .filter(land -> !api.isRunningRaid(land))
@@ -314,6 +465,11 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
         } else if (2 == args.length && (args[0].equalsIgnoreCase("stop") || args[0].equalsIgnoreCase("nextwave") || args[0].equalsIgnoreCase("setwave"))) {
             return api.getLands().stream()
                     .filter(api::isRunningRaid)
+                    .map(Land::getName)
+                    .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
+                    .toList();
+        } else if (2 == args.length && (args[0].equalsIgnoreCase("setnoraidday") || args[0].equalsIgnoreCase("unsetnoraidday"))) {
+            return api.getLands().stream()
                     .map(Land::getName)
                     .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .toList();
@@ -342,6 +498,10 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
             api.getPluginLang().send(sender, lang, args);
         }
 
+    }
+
+    public static String formatDays(LocalDate now, LocalDate target) {
+        return target.format(target.getYear() == now.getYear() ? DateTimeFormatter.ofPattern("M/d") : DateTimeFormatter.ofPattern("yyyy/M/d"));
     }
 
 }
