@@ -81,6 +81,8 @@ raid:
     - condition: "1"
       # スポーン数を数値またはプレイヤー人数などを元に算出する式で適用します (省略して現在のcount値を適用)
       count: "ceil( land_players * (3 + land_chunks * 1.5) * (1 + 0.1 * wave) )"  # or number value
+      # 最大ウェーブを式または値で上書きします (省略可)
+      max-waves: null
       # スポーン対象を定義します
       enemies:
         - source: mythicmobs
@@ -98,6 +100,8 @@ raid:
         - condition: "count <= 50"
           # スポーン数を数値またはプレイヤー人数などを元に算出する式で適用します (省略して現在のcount値を適用)
           count: null
+          # 最大ウェーブを式または値で上書きできます (省略可)
+          max-waves: null
           # スポーン対象を上書きできます (省略して親enemiesを適用)
           enemies: null
           # 条件に基づいて選択するモブを切り替えます (省略可)

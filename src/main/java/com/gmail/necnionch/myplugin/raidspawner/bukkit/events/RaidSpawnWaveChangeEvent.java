@@ -1,19 +1,20 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.events;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
-import me.angeschossen.lands.api.land.Land;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
-public class RaidSpawnStartEvent extends RaidSpawnerRaidEvent {
+public class RaidSpawnWaveChangeEvent extends RaidSpawnerRaidEvent {
     private static final HandlerList handlers = new HandlerList();
+    private final int waves;
 
-    public RaidSpawnStartEvent(RaidSpawner raid) {
+    public RaidSpawnWaveChangeEvent(RaidSpawner raid, int waves) {
         super(raid);
+        this.waves = waves;
     }
 
-    public Land getLand() {
-        return getRaid().getLand();
+    public int getWaves() {
+        return waves;
     }
 
     @NotNull

@@ -189,6 +189,7 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 c.contains("condition") ? createConditionExpression(c.get("condition")) : r -> true,
                 parseConditionType(c.getString("children-condition-type", "one"), "children-condition-type"),
                 c.contains("count") ? createExpression(c.get("count")) : MobSetting.ExpressionResource::parentCount,
+                c.contains("max-waves") ? createExpression(c.get("max-waves")) : null,
                 Optional.ofNullable(getConfigList(c, "enemies"))
                         .map(this::getMobEnemies)
                         .orElse(null),

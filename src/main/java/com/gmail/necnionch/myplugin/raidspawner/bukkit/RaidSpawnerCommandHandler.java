@@ -89,7 +89,7 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
             } else if (1 <= args.length && "stop".equalsIgnoreCase(args[0])) {
                 Land land = getLandOrError(1, args);
                 executeStopCommand(sender, land, parseEndResultOrError(3 <= args.length ? args[2] : "cancel"));
-            } else if (1 <= args.length && "chunkmap".equalsIgnoreCase(args[0])) {
+            } else if (1 <= args.length && ("chunkmap".equalsIgnoreCase(args[0]) || "mapchunk".equalsIgnoreCase(args[0]))) {
                 executeGiveChunkMap(getPlayer(sender));
             } else if (1 <= args.length && "setnoraidday".equalsIgnoreCase(args[0])) {
                 Land land;

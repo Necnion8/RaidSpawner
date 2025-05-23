@@ -15,6 +15,7 @@ public record MobSetting(
         Predicate<ExpressionResource> condition,
         ConditionType conditionType,
         Function<ExpressionResource, Integer> count,
+        @Nullable Function<ExpressionResource, Integer> maxWaves,
         @Nullable List<Enemy> enemies,
         @Nullable List<MobSetting> children
 ) {

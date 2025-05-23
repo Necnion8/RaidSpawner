@@ -34,6 +34,7 @@ public record RaidSetting(
                     r -> true,
                     MobSetting.ConditionType.ONE,
                     r -> 3,
+                    null,
                     Collections.emptyList(),
                     Collections.emptyList()
             ))

@@ -9,7 +9,9 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.BossBarSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.RaidSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnMaxWaveChangeEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEvent;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnWaveChangeEvent;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.LuckPermsBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks.PluginBridge;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.lang.Lang;
@@ -53,6 +55,7 @@ public class RaidSpawner {
     private final List<ChunkCoordinate> landChunks;
     private boolean running;
     private int waves;
+    private int maxWaves = 1;
     private long endTime = -1;  // 負の値で開始時刻; 正の値で終了にかかった時間(ms)
     private int deathCount;  // プレイヤーの死亡回数
     private @Nullable KeyedBossBar bossBar;
@@ -110,7 +113,7 @@ public class RaidSpawner {
     }
 
     public int getMaxWaves() {
-        return setting.maxWaves();
+        return maxWaves;
     }
 
     public int getWave() {
@@ -240,6 +243,7 @@ public class RaidSpawner {
 
         RaidSpawnerUtil.d(() -> "setWave to " + newWaves);
         waves = newWaves - 1;
+        ((RaidSpawnerPlugin) api).getServer().getPluginManager().callEvent(new RaidSpawnWaveChangeEvent(this, waves));
         tryNextWave();
     }
 
@@ -250,6 +254,7 @@ public class RaidSpawner {
         running = true;
         endTime = -System.currentTimeMillis();
         deathCount = 0;
+        maxWaves = setting.maxWaves();
         RaidSpawnerUtil.getLogger().info("Raid started: " + land.getName());
 
         Collection<Player> players = land.getOnlinePlayers();
@@ -435,9 +440,10 @@ public class RaidSpawner {
 
         RaidSpawnerUtil.d(() -> "tryNextWave | now wave: " + waves + " | land: " + land.getName());
 
-        if (waves < setting.maxWaves()) {
+        if (waves < maxWaves) {
             waves++;
             RaidSpawnerUtil.d(() -> "waves: " + waves);
+            ((RaidSpawnerPlugin) api).getServer().getPluginManager().callEvent(new RaidSpawnWaveChangeEvent(this, waves));
             doWave();
 
         } else if (fullWaveToWin) {
@@ -472,7 +478,16 @@ public class RaidSpawner {
             unloadEnemy(enemy);
             return true;
         });
-        summonEnemyMobs();
+
+        EnemiesSelectResult selectResult = selectMobSettings();
+        summonEnemyMobs(selectResult.enemies);
+
+        // change max wave
+        if (selectResult.maxWaves != null && selectResult.maxWaves != maxWaves) {
+            maxWaves = selectResult.maxWaves;
+            waves = Math.min(waves, maxWaves);
+            ((RaidSpawnerPlugin) api).getServer().getPluginManager().callEvent(new RaidSpawnMaxWaveChangeEvent(this, maxWaves));
+        }
 
         // set wave timer
         if (currentWaveMaxTimer != null) {
@@ -483,18 +498,28 @@ public class RaidSpawner {
         }
     }
 
-    private List<MobSetting.Enemy> selectEnemies(int index, MobSetting setting, int parentCount, @Nullable MobSetting parentSetting) {
-        List<MobSetting.Enemy> select = new ArrayList<>();
+    private void selectEnemies(EnemiesSelectResult result, int index, MobSetting setting) {
+        selectEnemies(result, index, setting, 1, null);
+    }
 
+    private void selectEnemies(EnemiesSelectResult result, int index, MobSetting setting, int parentCount, @Nullable MobSetting parentSetting) {
         MobSetting.ExpressionResource pExprResource = new MobSetting.ExpressionResource(this, index, parentCount);
         int count = setting.count().apply(pExprResource);
+        if (setting.maxWaves() != null) {
+            result.maxWaves = setting.maxWaves().apply(pExprResource);
+        }
 
         if (setting.children() != null && !setting.children().isEmpty()) {
             for (int i = 0; i < setting.children().size(); i++) {
                 MobSetting child = setting.children().get(i);
 
-                if (i + 1 == setting.children().size() || child.condition().test(new MobSetting.ExpressionResource(this, index, count))) {
-                    select.addAll(selectEnemies(i, child, count, setting));
+                MobSetting.ExpressionResource exprResource = new MobSetting.ExpressionResource(this, index, count);
+                if (i + 1 == setting.children().size() || child.condition().test(exprResource)) {
+                    selectEnemies(result, i, child, count, setting);
+                    if (child.maxWaves() != null) {
+                        result.maxWaves = child.maxWaves().apply(exprResource);
+                    }
+
                     if (MobSetting.ConditionType.ONE.equals(setting.conditionType()))
                         break;
                 }
@@ -506,22 +531,23 @@ public class RaidSpawner {
                 enemies = parentSetting.selectEnemies(count, random);
             }
             if (enemies != null) {
-                select.addAll(enemies);
+                result.enemies.addAll(enemies);
             }
+        }
+    }
+
+    private EnemiesSelectResult selectMobSettings() {
+        EnemiesSelectResult select = new EnemiesSelectResult();
+        for (int i = 0; i < setting.mobs().size(); i++) {
+            MobSetting mobSetting = setting.mobs().get(i);
+            selectEnemies(select, i, mobSetting);
         }
         return select;
     }
 
-    private void summonEnemyMobs() {
-        // select enemy
-        List<MobSetting.Enemy> enemySettings = new ArrayList<>();
-        for (int i = 0; i < setting.mobs().size(); i++) {
-            MobSetting mobSetting = setting.mobs().get(i);
-            enemySettings.addAll(selectEnemies(i, mobSetting, 1, null));
-        }
-
+    private void summonEnemyMobs(List<MobSetting.Enemy> enemies) {
         // get provider
-        for (MobSetting.Enemy enemyItem : enemySettings) {
+        for (MobSetting.Enemy enemyItem : enemies) {
             RaidSpawnerUtil.d(() -> "- enemy: source " + enemyItem.getSource());
 
             EnemyProvider<?> provider = enemyItem.getProvider();
@@ -719,5 +745,14 @@ public class RaidSpawner {
             List<Action> noConditionWinActions,
             List<Action> loseActions
     ) {}
+
+    private static class EnemiesSelectResult {
+
+        private final List<MobSetting.Enemy> enemies = new ArrayList<>();
+        private @Nullable Integer maxWaves;
+
+        public EnemiesSelectResult() {
+        }
+    }
 
 }
