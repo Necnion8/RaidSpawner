@@ -9,7 +9,9 @@ import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidEndResult;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import com.google.common.collect.Multimap;
 import me.angeschossen.lands.api.land.Land;
-import org.bukkit.*;
+import org.bukkit.ChatColor;
+import org.bukkit.Chunk;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -17,7 +19,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.MapMeta;
-import org.bukkit.map.MapView;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -389,31 +390,30 @@ public class RaidSpawnerCommandHandler implements TabExecutor {
 
     private void executeGiveChunkMap(Player player) {
         PlayerInventory inv = player.getInventory();
-
-        MapView view;
-        ItemStack itemStack;
+        ItemStack itemStack = null;
         MapMeta itemMeta;
+
         ItemStack mainHandItem = inv.getItemInMainHand();
+        ItemStack offhandItem = inv.getItemInOffHand();
 
-        if (Material.FILLED_MAP.equals(mainHandItem.getType())) {
-            // override map
-            itemStack = mainHandItem;
-            view = ((MapMeta) mainHandItem.getItemMeta()).getMapView();
-
-        } else {
-            itemStack = new ItemStack(Material.FILLED_MAP);
-            view = Bukkit.createMap(player.getWorld());
+        if (api.isChunkMapItem(offhandItem)) {
+            itemStack = offhandItem;
+            itemMeta = (MapMeta) Objects.requireNonNull(itemStack.getItemMeta());
+            ((RaidSpawnerPlugin) api).updateChunkMapItem(itemMeta);
+            itemStack.setItemMeta(itemMeta);
         }
-        itemMeta = (MapMeta) itemStack.getItemMeta();
+        if (api.isChunkMapItem(mainHandItem)) {
+            itemStack = mainHandItem;
+            itemMeta = (MapMeta) Objects.requireNonNull(itemStack.getItemMeta());
+            ((RaidSpawnerPlugin) api).updateChunkMapItem(itemMeta);
+            itemStack.setItemMeta(itemMeta);
+        }
 
-        view.setScale(MapView.Scale.NORMAL);
-        view.getRenderers().forEach(view::removeRenderer);
-        view.addRenderer(api.getChunkViewRenderer());
+        if (itemStack == null) {
+            itemStack = api.createChunkMapItem();
+        }
 
-        itemMeta.setMapView(view);
-        itemStack.setItemMeta(itemMeta);
-
-        if (!itemStack.equals(mainHandItem)) {
+        if (!itemStack.equals(mainHandItem) && !itemStack.equals(offhandItem)) {
             inv.setItemInMainHand(itemStack);
             inv.addItem(mainHandItem);
         }

@@ -25,6 +25,8 @@ import me.angeschossen.lands.api.land.Container;
 import me.angeschossen.lands.api.land.Land;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Chunk;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
@@ -37,6 +39,12 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.EntitiesUnloadEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.MapMeta;
+import org.bukkit.map.MapView;
+import org.bukkit.persistence.PersistentDataHolder;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
@@ -52,6 +60,8 @@ import java.util.logging.Level;
 import java.util.stream.Stream;
 
 public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, RaidSpawnerAPI {
+
+    private final NamespacedKey CUSTOM_ITEM_KEY = new NamespacedKey(this, "item");
     private final RaidSpawnerConfig pluginConfig = new RaidSpawnerConfig(this);
     private final RaidSpawnerData pluginData = new RaidSpawnerData(this);
     private final RaidSpawnerLang pluginLang = new RaidSpawnerLang(this);
@@ -125,6 +135,9 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
         initializeProviders();
         getServer().getPluginManager().registerEvents(this, this);
         startStartConditions();
+
+        // reactivate chunk map items
+        activateChunkMapItemsInPlayerHands();
     }
 
     @Override
@@ -516,6 +529,64 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
             chunks.putAll(world, tickets);
         }
         return chunks;
+    }
+
+    public void updateChunkMapItem(MapMeta itemMeta) {
+        MapView view = getServer().createMap(getServer().getWorlds().get(0));
+        view.setScale(MapView.Scale.NORMAL);
+        view.getRenderers().forEach(view::removeRenderer);
+        view.addRenderer(getChunkViewRenderer());
+        itemMeta.setMapView(view);
+        itemMeta.getPersistentDataContainer().set(CUSTOM_ITEM_KEY, PersistentDataType.STRING, "chunk_map");
+    }
+
+    @Override
+    public ItemStack createChunkMapItem() {
+        ItemStack itemStack = new ItemStack(Material.FILLED_MAP);
+        MapMeta itemMeta = ((MapMeta) Objects.requireNonNull(itemStack.getItemMeta()));
+        updateChunkMapItem(itemMeta);
+        itemStack.setItemMeta(itemMeta);
+        return itemStack;
+    }
+
+    @Override
+    public boolean isChunkMapItem(ItemStack itemStack) {
+        return Optional.of(itemStack)
+                .map(ItemStack::getItemMeta)
+                .map(PersistentDataHolder::getPersistentDataContainer)
+                .map(pdc -> "chunk_map".equals(pdc.get(CUSTOM_ITEM_KEY, PersistentDataType.STRING)))
+                .orElse(false);
+    }
+
+    public void activateChunkMapItemsInPlayerHands() {
+        boolean updateChunkViews = false;
+        for (Player player : getServer().getOnlinePlayers()) {
+            PlayerInventory inv = player.getInventory();
+            ItemStack itemStack = inv.getItemInMainHand();
+            boolean updated = false;
+
+            if (isChunkMapItem(itemStack)) {
+                MapMeta itemMeta = (MapMeta) Objects.requireNonNull(itemStack.getItemMeta());
+                updateChunkMapItem(itemMeta);
+                itemStack.setItemMeta(itemMeta);
+                updated = true;
+            }
+            itemStack = inv.getItemInOffHand();
+            if (isChunkMapItem(itemStack)) {
+                MapMeta itemMeta = (MapMeta) Objects.requireNonNull(itemStack.getItemMeta());
+                updateChunkMapItem(itemMeta);
+                itemStack.setItemMeta(itemMeta);
+                updated = true;
+            }
+
+            if (updated) {
+                player.updateInventory();
+                updateChunkViews = true;
+            }
+        }
+
+        if (updateChunkViews)
+            updateChunkViewRendererChunks(true);
     }
 
     // event start condition

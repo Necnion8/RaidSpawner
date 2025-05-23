@@ -22,6 +22,7 @@ import me.angeschossen.lands.api.LandsIntegration;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.Chunk;
 import org.bukkit.World;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
@@ -169,6 +170,16 @@ public interface RaidSpawnerAPI {
      * @return 実行されたアクションタイプと結果のマップ
      */
     Map<Class<Action>, Boolean> executeActions(RaidSpawner spawner, List<Action> actions);
+
+    /**
+     * チャンクマップアイテムを作成します
+     */
+    ItemStack createChunkMapItem();
+
+    /**
+     * チャンクマップアイテムなら true を返します
+     */
+    boolean isChunkMapItem(ItemStack itemStack);
 
     Collection<Land> getLands();
 
