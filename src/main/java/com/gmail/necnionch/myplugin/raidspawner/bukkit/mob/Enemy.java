@@ -1,6 +1,8 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.mob;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -8,25 +10,40 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
+import java.util.Random;
 
-public interface Enemy {
+public abstract class Enemy {
 
-    @Nullable Entity spawn(RaidSpawner spawner, World world, Location location);
+    private final MobSetting.Enemy config;
 
-    boolean isAlive();
+    public Enemy(MobSetting.Enemy config) {
+        this.config = config;
+    }
 
-    boolean remove();
+    public MobSetting.Enemy getConfig() {
+        return config;
+    }
 
-    @Nullable Entity getEntity();
+    public abstract @Nullable Entity spawn(RaidSpawner spawner, World world, Location location);
 
-    default @Nullable Location getEntityLocation() {
+    public abstract boolean isAlive();
+
+    public abstract boolean remove();
+
+    public abstract @Nullable Entity getEntity();
+
+    public @Nullable Location getEntityLocation() {
         return Optional.ofNullable(getEntity()).map(Entity::getLocation).orElse(null);
     }
 
-    default void unload() {
+    public void unload() {
         remove();
     }
 
-    @NotNull EnemyProvider<?> getProvider();
+    public abstract @NotNull EnemyProvider<?> getProvider();
+
+    public @Nullable Location searchRandomSpawnLocationByChunk(RaidSpawner spawner, Chunk chunk, Random random, boolean force) {
+        return spawner.selectRandomSpawnLocationByChunk(getConfig(), chunk, random, force);
+    }
 
 }

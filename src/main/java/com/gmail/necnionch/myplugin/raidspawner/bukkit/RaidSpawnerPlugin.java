@@ -389,7 +389,7 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
 
                 boolean valid;
                 try {
-                    valid = provider.isValid(enemyItem.getConfig());
+                    valid = provider.isValid(enemyItem, enemyItem.getConfig());
                 } catch (EnemyProvider.ConfigurationError e) {
                     getLogger().severe("Invalid enemy config: (mob=" + location + ",enemy=" + index + ") " + provider.getSource() + ": " + e.getMessage());
                     continue;

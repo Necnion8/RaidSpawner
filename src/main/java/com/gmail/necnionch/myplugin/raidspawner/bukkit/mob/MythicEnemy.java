@@ -2,6 +2,7 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit.mob;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import io.lumine.mythic.api.MythicProvider;
 import io.lumine.mythic.api.mobs.MobManager;
@@ -9,6 +10,7 @@ import io.lumine.mythic.api.mobs.MythicMob;
 import io.lumine.mythic.bukkit.BukkitAdapter;
 import io.lumine.mythic.core.mobs.ActiveMob;
 import io.lumine.mythic.core.mobs.DespawnMode;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -21,7 +23,9 @@ import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class MythicEnemy implements Enemy, Listener {
+import java.util.Random;
+
+public class MythicEnemy extends Enemy implements Listener {
 
     private final Provider provider;
     private final MythicMob mob;
@@ -30,7 +34,8 @@ public class MythicEnemy implements Enemy, Listener {
     private @Nullable ActiveMob activeMob;
     private @Nullable RaidSpawner spawner;
 
-    public MythicEnemy(Provider provider, MythicMob mob, String type, double level) {
+    public MythicEnemy(MobSetting.Enemy config, Provider provider, MythicMob mob, String type, double level) {
+        super(config);
         this.provider = provider;
         this.mob = mob;
         this.type = type;
@@ -111,6 +116,11 @@ public class MythicEnemy implements Enemy, Listener {
         return provider;
     }
 
+    @Nullable
+    @Override
+    public Location searchRandomSpawnLocationByChunk(RaidSpawner spawner, Chunk chunk, Random random, boolean force) {
+        return super.searchRandomSpawnLocationByChunk(spawner, chunk, random, force);
+    }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onTarget(EntityTargetLivingEntityEvent event) {
@@ -134,19 +144,19 @@ public class MythicEnemy implements Enemy, Listener {
         }
 
         @Override
-        public boolean isValid(ConfigurationSection config) throws ConfigurationError {
+        public boolean isValid(MobSetting.Enemy enemy, ConfigurationSection config) throws ConfigurationError {
             String type = config.getString("type");
             mobs.getMythicMob(type).orElseThrow(() -> new ConfigurationError("Unknown MythicMob Type: " + type));
             return true;
         }
 
         @Override
-        public MythicEnemy create(ConfigurationSection config) throws ConfigurationError {
+        public MythicEnemy create(MobSetting.Enemy enemy, ConfigurationSection config) throws ConfigurationError {
             String type = config.getString("type");
             double level = config.getDouble("level", 1);
 
             MythicMob mob = mobs.getMythicMob(type).orElseThrow(() -> new ConfigurationError("Unknown MythicMob Type: " + type));
-            return new MythicEnemy(this, mob, type, level);
+            return new MythicEnemy(enemy, this, mob, type, level);
         }
 
         public static @Nullable Provider createAndHookMythicMobs(RaidSpawnerPlugin plugin) {

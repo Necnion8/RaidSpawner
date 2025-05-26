@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.mob;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -8,6 +9,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.loot.LootTables;
 import org.bukkit.potion.PotionEffect;
@@ -21,7 +23,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-public class VanillaEnemy implements Enemy {
+public class VanillaEnemy extends Enemy implements Listener {
 
     private final EntityType entityType;
     private final Consumer<LivingEntity> consumer;
@@ -29,7 +31,8 @@ public class VanillaEnemy implements Enemy {
     private @Nullable LivingEntity entity;
     private @Nullable RaidSpawner spawner;
 
-    public VanillaEnemy(Provider provider, EntityType entityType, Consumer<LivingEntity> consumer) {
+    public VanillaEnemy(MobSetting.Enemy config, Provider provider, EntityType entityType, Consumer<LivingEntity> consumer) {
+        super(config);
         this.provider = provider;
         this.entityType = entityType;
         this.consumer = consumer;
@@ -102,7 +105,7 @@ public class VanillaEnemy implements Enemy {
         }
 
         @Override
-        public boolean isValid(ConfigurationSection config) throws ConfigurationError {
+        public boolean isValid(MobSetting.Enemy enemy, ConfigurationSection config) throws ConfigurationError {
             EntityType type;
             try {
                 type = EntityType.valueOf(config.getString("type", "").toUpperCase(Locale.ROOT));
@@ -118,7 +121,7 @@ public class VanillaEnemy implements Enemy {
         }
 
         @Override
-        public VanillaEnemy create(ConfigurationSection config) throws ConfigurationError {
+        public VanillaEnemy create(MobSetting.Enemy enemy, ConfigurationSection config) throws ConfigurationError {
             EntityType type;
             try {
                 type = EntityType.valueOf(config.getString("type", "").toUpperCase(Locale.ROOT));
@@ -146,7 +149,7 @@ public class VanillaEnemy implements Enemy {
                 }
             }
 
-            return new VanillaEnemy(this, type, entity -> {
+            return new VanillaEnemy(enemy, this, type, entity -> {
                 entity.setHealth(health);
                 entity.setRemoveWhenFarAway(false);
                 Optional.ofNullable(entity.getAttribute(Attribute.GENERIC_MAX_HEALTH)).ifPresent(a -> a.setBaseValue(health));

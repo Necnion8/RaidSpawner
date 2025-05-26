@@ -51,6 +51,7 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         ConfigurationSection config = Optional.ofNullable(configuration.getConfigurationSection("raid"))
                 .orElseGet(MemoryConfiguration::new);
 
+        MobSetting.SpawnLocation spawnLocation = MobSetting.SpawnLocation.parse(config.getConfigurationSection("mobs-spawn-location"));
         raidSetting = new RaidSetting(
                 config.getInt("event-time-minutes", RaidSetting.DEFAULTS.eventTimeMinutes()),
                 config.getInt("waves", RaidSetting.DEFAULTS.maxWaves()),
@@ -61,9 +62,10 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
                 config.getString("world", RaidSetting.DEFAULTS.world()),
                 config.getInt("mobs-distance-chunks", RaidSetting.DEFAULTS.mobsDistanceChunks()),
                 config.getInt("mobs-glowing-enemies", RaidSetting.DEFAULTS.mobsGlowingEnemies()),
+                spawnLocation,
                 parseConditionType(config.getString("mobs-condition-type", "all"), "mobs-condition-type"),
                 Optional.ofNullable(getConfigList(config, "mobs"))
-                        .map(this::getMobSettings)
+                        .map(s -> getMobSettings(spawnLocation, s))
                         .orElse(RaidSetting.DEFAULTS.mobs())
         );
         return true;
@@ -184,28 +186,27 @@ public class RaidSpawnerConfig extends BukkitConfigDriver {
         };
     }
 
-    private List<MobSetting> getMobSettings(List<ConfigurationSection> config) {
+    private List<MobSetting> getMobSettings(MobSetting.SpawnLocation spawnLocation, List<ConfigurationSection> config) {
         return config.stream().map(c -> new MobSetting(
                 c.contains("condition") ? createConditionExpression(c.get("condition")) : r -> true,
                 parseConditionType(c.getString("children-condition-type", "one"), "children-condition-type"),
                 c.contains("count") ? createExpression(c.get("count")) : MobSetting.ExpressionResource::parentCount,
                 c.contains("max-waves") ? createExpression(c.get("max-waves")) : null,
                 Optional.ofNullable(getConfigList(c, "enemies"))
-                        .map(this::getMobEnemies)
+                        .map(e -> getMobEnemies(spawnLocation, e))
                         .orElse(null),
                 Optional.ofNullable(getConfigList(c, "children"))
-                        .map(this::getMobSettings)
+                        .map(s -> getMobSettings(spawnLocation, s))
                         .orElse(null)
         )).toList();
     }
 
-    private List<MobSetting.Enemy> getMobEnemies(List<ConfigurationSection> config) {
-        return config.stream().map(c -> new MobSetting.Enemy(
-                c.getString("source"),
-                c.getInt("priority"),
-                c,
-                null
-                )).collect(Collectors.toList());
+    private List<MobSetting.Enemy> getMobEnemies(MobSetting.SpawnLocation spawnLocation, List<ConfigurationSection> config) {
+        return config.stream()
+                .map(c -> MobSetting.Enemy.parse(
+                        c, MobSetting.SpawnLocation.parse(c.getConfigurationSection("spawn-location"), spawnLocation), null
+                ))
+                .collect(Collectors.toList());
     }
 
     private MobSetting.ConditionType parseConditionType(String value, String location) {

@@ -1,5 +1,6 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.mob;
 
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import org.bukkit.configuration.ConfigurationSection;
 import org.jetbrains.annotations.NotNull;
 
@@ -15,9 +16,9 @@ public abstract class EnemyProvider<E extends Enemy> {
         return source;
     }
 
-    public abstract E create(ConfigurationSection config) throws ConfigurationError;
+    public abstract E create(MobSetting.Enemy enemy, ConfigurationSection config) throws ConfigurationError;
 
-    public abstract boolean isValid(ConfigurationSection config) throws ConfigurationError;
+    public abstract boolean isValid(MobSetting.Enemy enemy, ConfigurationSection config) throws ConfigurationError;
 
     public void load() {
     }

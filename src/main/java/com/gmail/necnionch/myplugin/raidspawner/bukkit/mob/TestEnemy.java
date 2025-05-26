@@ -1,6 +1,7 @@
 package com.gmail.necnionch.myplugin.raidspawner.bukkit.mob;
 
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.config.MobSetting;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.raid.RaidSpawner;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -23,13 +24,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
-public class TestEnemy implements Enemy, Listener {
+public class TestEnemy extends Enemy implements Listener {
 
     private final Provider provider;
     private @Nullable LivingEntity entity;
     private @Nullable RaidSpawner spawner;
 
-    public TestEnemy(Provider provider) {
+    public TestEnemy(MobSetting.Enemy config, Provider provider) {
+        super(config);
         this.provider = provider;
     }
 
@@ -111,13 +113,13 @@ public class TestEnemy implements Enemy, Listener {
         }
 
         @Override
-        public boolean isValid(ConfigurationSection config) {
+        public boolean isValid(MobSetting.Enemy enemy, ConfigurationSection config) throws ConfigurationError {
             return true;
         }
 
         @Override
-        public TestEnemy create(ConfigurationSection config) throws ConfigurationError {
-            return new TestEnemy(this);
+        public TestEnemy create(MobSetting.Enemy enemy, ConfigurationSection config) throws ConfigurationError {
+            return new TestEnemy(enemy, this);
         }
 
     }

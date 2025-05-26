@@ -24,6 +24,7 @@ import me.angeschossen.lands.api.land.ChunkCoordinate;
 import me.angeschossen.lands.api.land.Land;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.boss.KeyedBossBar;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -191,7 +192,7 @@ public class RaidSpawner {
             return;
 
         ChunkCoordinate chunk = landChunks.get(random.nextInt(landChunks.size()));
-        Location location = selectRandomSpawnLocationByChunk(world.getChunkAt(chunk.getX(), chunk.getZ()), random, false);
+        Location location = selectRandomSpawnLocationByChunk(null, world.getChunkAt(chunk.getX(), chunk.getZ()), random, false);
         if (location != null) {
             players.forEach(p -> p.teleport(location));
         }
@@ -556,7 +557,7 @@ public class RaidSpawner {
             } else {
                 Enemy enemy;
                 try {
-                    enemy = provider.create(enemyItem.getConfig());
+                    enemy = provider.create(enemyItem, enemyItem.getConfig());
                 } catch (EnemyProvider.ConfigurationError e) {
                     RaidSpawnerUtil.getLogger().severe("Invalid enemy config: " + provider.getSource() + ": " + e.getMessage());
                     continue;
@@ -582,7 +583,7 @@ public class RaidSpawner {
 
                 for (int i = 0; i < searchLimit; i++) {
                     Chunk chunk = spawnChunks.get(random.nextInt(spawnChunks.size()));
-                    location = selectRandomSpawnLocationByChunk(chunk.getBukkitChunk(), random, searchLimit <= i + 1);
+                    location = enemy.searchRandomSpawnLocationByChunk(this, chunk.getBukkitChunk(), random, searchLimit <= i + 1);
                     if (location == null)
                         continue;
 
@@ -604,16 +605,38 @@ public class RaidSpawner {
     /**
      * チャンクの範囲内でランダムな位置を返します
      * @param chunk 対象のチャンク
-     * @param ignoreBlockTest ブロックをテストしません (false の場合は水や溶岩を避けます)
+     * @param force ブロックをテストしません (通常は水や溶岩を避けます)
      */
-    private @Nullable Location selectRandomSpawnLocationByChunk(org.bukkit.Chunk chunk, Random random, boolean ignoreBlockTest) {
+    public @Nullable Location selectRandomSpawnLocationByChunk(@Nullable MobSetting.Enemy enemy, org.bukkit.Chunk chunk, Random random, boolean force) {
         for (int i = 0; i < 8; i++) {  // limit 8 tests
             int blockX = 4 + random.nextInt(8);
             int blockZ = 4 + random.nextInt(8);
             Block block = chunk.getWorld().getHighestBlockAt(chunk.getX() << 4 | blockX & 0xF, chunk.getZ() << 4 | blockZ & 0xF);
 
-            if (!ignoreBlockTest && (Material.WATER.equals(block.getType()) || Material.LAVA.equals(block.getType())))
-                continue;
+            if (!force) {
+                if (Material.WATER.equals(block.getType())) {
+                    if (enemy != null) {
+                        for (int y = 0; y < enemy.getSpawnLocation().allowWaterHeight(); y++) {
+                            block = block.getRelative(BlockFace.DOWN);
+                            if (!Material.WATER.equals(block.getType())) {
+                                return block.getLocation().add(.5, 1, .5);
+                            }
+                        }
+                    }
+                    continue;
+
+                } else if (Material.LAVA.equals(block.getType())) {
+                    if (enemy != null) {
+                        for (int y = 0; y < enemy.getSpawnLocation().allowLavaHeight(); y++) {
+                            block = block.getRelative(BlockFace.DOWN);
+                            if (!Material.LAVA.equals(block.getType())) {
+                                return block.getLocation().add(.5, 1, .5);
+                            }
+                        }
+                    }
+                    continue;
+                }
+            }
 
             return block.getLocation().add(.5, 1, .5);
         }

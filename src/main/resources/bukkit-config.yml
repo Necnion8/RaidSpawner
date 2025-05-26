@@ -63,6 +63,14 @@ raid:
   # モブに発光効果を付与する敵残存数
   mobs-glowing-enemies: 10
 
+  # モブのスポーン位置設定
+  mobs-spawn-location:
+    # 位置を探す上限回数
+    search-limit: 8
+    # 深さ1ブロックの水の中にスポーン可
+    allow-water-height: 1
+    # 深さ0ブロックの溶岩の中にスポーン可
+    allow-lava-height: 0
   # モブ設定のグループ条件タイプ (省略してall)
   # - all  条件を満たすグループを全て
   # - one  条件を満たす最初のグループ
@@ -114,6 +122,8 @@ raid:
               type: MOB_TYPE
               level: 2
               priority: 1
+              # モブのスポーン位置設定(raid.mobs-spawn-location)を上書きできます (省略可)
+              spawn-location:
           children: []
 
 # 成功報酬設定
