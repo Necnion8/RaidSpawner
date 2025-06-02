@@ -10,6 +10,7 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
 - [PlaceholderAPI](https://www.spigotmc.org/resources/6245) (optional)
 - [LuckPerms](https://www.spigotmc.org/resources/28140) (optional)
 - [DiscordSRV](https://modrinth.com/plugin/discordsrv) (optional, v1.29.0 でテスト)
+- [StatBadge](https://github.com/Necnion8/StatBadge) (optional, v1.0.x でテスト)
 
 ## コマンドと権限
 | コマンド                                | サブコマンド / 説明                                               | 権限                                  | デフォルト |

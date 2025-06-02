@@ -131,6 +131,16 @@ public final class RaidSpawnerPlugin extends JavaPlugin implements Listener, Rai
                 e.printStackTrace();
             }
         }
+        if (getServer().getPluginManager().isPluginEnabled("StatBadge")) {
+            try {
+                StatBadgeBridge bridge = new StatBadgeBridge();
+                if (bridge.hook()) {
+                    PluginBridge.put(bridge);
+                }
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
 
         initializeProviders();
         getServer().getPluginManager().registerEvents(this, this);

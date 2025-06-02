@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'com.gmail.necnionch.myplugin.raidspawner'
-version = '1.4.0'
+version = '1.5.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -42,6 +42,7 @@ dependencies {
     compileOnly 'me.clip:placeholderapi:2.11.6'
     compileOnly 'net.luckperms:api:5.4'
     compileOnly "com.discordsrv:discordsrv:1.29.0"
+    compileOnly(files("./libs/StatBadge-1.0.0-SNAPSHOT.jar"))
 }
 
 tasks.named("shadowJar", ShadowJar) {

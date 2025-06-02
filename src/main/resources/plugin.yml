@@ -14,6 +14,7 @@ softdepend:
   - PlaceholderAPI
   - LuckPerms
   - DiscordSRV
+  - StatBadge
 
 commands:
   raidspawner:
