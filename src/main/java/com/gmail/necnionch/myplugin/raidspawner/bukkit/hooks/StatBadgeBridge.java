@@ -3,7 +3,8 @@ package com.gmail.necnionch.myplugin.raidspawner.bukkit.hooks;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerPlugin;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.RaidSpawnerUtil;
 import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnEndEvent;
-import com.gmail.necnionch.myplugin.statbadge.bukkit.plugin.StatBadgePlugin;
+import com.gmail.necnionch.myplugin.raidspawner.bukkit.events.RaidSpawnStartEvent;
+import com.gmail.necnionch.myplugin.statbadge.bukkit.plugin.StatBadgePluginInterface;
 import com.gmail.necnionch.myplugin.statbadge.bukkit.plugin.StatManager;
 import com.gmail.necnionch.myplugin.statbadge.bukkit.stats.ActionType;
 import com.gmail.necnionch.myplugin.statbadge.bukkit.stats.PlayerAction;
@@ -15,37 +16,51 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.Plugin;
 
 import java.time.Instant;
 import java.util.UUID;
 
 public class StatBadgeBridge implements PluginBridge, Listener {
     private StatManager api;
-    private static final ActionType ACTION_RAID_WINS = new ActionType(RaidSpawnerUtil.getPlugin(), "wins");
-    private static final ActionType ACTION_RAID_LOSES = new ActionType(RaidSpawnerUtil.getPlugin(), "loses");
+    public static final ActionType ACTION_RAID_WINS = new ActionType(RaidSpawnerUtil.getPlugin(), "wins");
+    public static final ActionType ACTION_RAID_LOSES = new ActionType(RaidSpawnerUtil.getPlugin(), "loses");
+    public static final ActionType ACTION_RAID_WIN_LOSE = new ActionType(RaidSpawnerUtil.getPlugin(), "win_lose");
+    public static final ActionType ACTION_RAID_STARTS = new ActionType(RaidSpawnerUtil.getPlugin(), "starts");
 
     @Override
     public boolean hook() {
         api = null;
         if (!Bukkit.getPluginManager().isPluginEnabled(getPluginName()))
             return false;
-        try {
-            Class.forName("com.gmail.necnionch.myplugin.statbadge.bukkit.plugin.StatBadgePlugin");
-            api = StatBadgePlugin.getStatManager();
-        } catch (ClassNotFoundException | IllegalStateException e) {
+        Plugin temp;
+        if (!((temp = Bukkit.getPluginManager().getPlugin(getPluginName())) instanceof StatBadgePluginInterface))
             return false;
-        }
+        if ((api = ((StatBadgePluginInterface) temp).getStatManager()) == null)
+            return false;
         RaidSpawnerPlugin plugin = RaidSpawnerUtil.getPlugin();
         api.addPlayerActionStatsProvider(ACTION_RAID_WINS, new PlayerActionStatsProvider(plugin) {
             @Override
-            public PlayerActionStats create(UUID uuid, String s, ConfigurationSection configurationSection) throws ConfigurationError {
-                return new PlayerRaidCount(uuid, ACTION_RAID_WINS, 0);
+            public PlayerActionStats create(UUID uuid, ConfigurationSection configurationSection, long targetValue) throws ConfigurationError {
+                return new PlayerRaidCount(uuid, ACTION_RAID_WINS, 0, targetValue);
             }
         });
         api.addPlayerActionStatsProvider(ACTION_RAID_LOSES, new PlayerActionStatsProvider(plugin) {
             @Override
-            public PlayerActionStats create(UUID uuid, String s, ConfigurationSection configurationSection) throws ConfigurationError {
-                return new PlayerRaidCount(uuid, ACTION_RAID_LOSES, 0);
+            public PlayerActionStats create(UUID uuid, ConfigurationSection configurationSection, long targetValue) throws ConfigurationError {
+                return new PlayerRaidCount(uuid, ACTION_RAID_LOSES, 0, targetValue);
+            }
+        });
+        api.addPlayerActionStatsProvider(ACTION_RAID_WIN_LOSE, new PlayerActionStatsProvider(plugin) {
+            @Override
+            public PlayerActionStats create(UUID uuid, ConfigurationSection configurationSection, long targetValue) throws ConfigurationError {
+                return new PlayerRaidCount(uuid, ACTION_RAID_WIN_LOSE, 0, targetValue);
+            }
+        });
+        api.addPlayerActionStatsProvider(ACTION_RAID_STARTS, new PlayerActionStatsProvider(plugin) {
+            @Override
+            public PlayerActionStats create(UUID uuid, ConfigurationSection configurationSection, long targetValue) throws ConfigurationError {
+                return new PlayerRaidCount(uuid, ACTION_RAID_STARTS, 0, targetValue);
             }
         });
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
@@ -73,6 +88,13 @@ public class StatBadgeBridge implements PluginBridge, Listener {
 
 
     @EventHandler
+    public void onRaidStart(RaidSpawnStartEvent event) {
+        for (Player player : event.getLand().getOnlinePlayers()) {
+            addPlayerRaidCount(player, ACTION_RAID_STARTS);
+        }
+    }
+
+    @EventHandler
     public void onRaidEnd(RaidSpawnEndEvent event) {
         boolean win;
         switch (event.getResult()) {
@@ -85,6 +107,7 @@ public class StatBadgeBridge implements PluginBridge, Listener {
 
         for (Player player : event.getLand().getOnlinePlayers()) {
             addPlayerRaidCount(player, win ? ACTION_RAID_WINS : ACTION_RAID_LOSES);
+            addPlayerRaidCount(player, ACTION_RAID_WIN_LOSE);
         }
     }
 
@@ -98,8 +121,8 @@ public class StatBadgeBridge implements PluginBridge, Listener {
 
     public static class PlayerRaidCount extends PlayerActionStats {
 
-        public PlayerRaidCount(UUID playerId, ActionType sourceActionType, long value) {
-            super(playerId, sourceActionType, value);
+        public PlayerRaidCount(UUID playerId, ActionType sourceActionType, long value, long targetValue) {
+            super(playerId, sourceActionType, value, targetValue);
         }
 
         @Override

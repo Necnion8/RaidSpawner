@@ -10,7 +10,7 @@ Landsプラグインと連携して各Landにモブ襲撃を起こすプラグ�
 - [PlaceholderAPI](https://www.spigotmc.org/resources/6245) (optional)
 - [LuckPerms](https://www.spigotmc.org/resources/28140) (optional)
 - [DiscordSRV](https://modrinth.com/plugin/discordsrv) (optional, v1.29.0 でテスト)
-- [StatBadge](https://github.com/Necnion8/StatBadge) (optional, v1.0.x でテスト)
+- [StatBadge](https://github.com/Necnion8/StatBadge) (optional, v1.0.0-SNAPSHOT でテスト)
 
 ## コマンドと権限
 | コマンド                                | サブコマンド / 説明                                               | 権限                                  | デフォルト |
@@ -133,6 +133,48 @@ actions:
 
 ### デフォルトの設定
 [./plugins/RaidSpawner/config.yml](src%2Fmain%2Fresources%2Fbukkit-config.yml)
+
+### StatBadge の統計設定
+以下のプレイヤーアクションを使用できます
+- `raidspawner:wins` - 襲撃に勝利した
+- `raidspawner:loses` - 襲撃に敗北した
+- `raidspawner:win_lose` - 襲撃を終えた
+- `raidspawner:starts` - 襲撃に参加した (※襲撃開始時にオンラインであればカウント)
+
+<details>
+<summary>badges.yml 設定例</summary>
+
+```yml
+raid_wins:
+  name: "襲撃に勝利"
+  description: "襲撃に打ち勝った回数"
+  stats:
+    action: "raidspawner:wins"
+    value: 5
+
+raid_loses:
+  name: "襲撃に敗北"
+  description: "襲撃に敗北した回数"
+  stats:
+    action: "raidspawner:loses"
+    value: 5
+
+raid_win_lose:
+  name: "襲撃を完了"
+  description: "襲撃を勝敗関係なく最後まで見届けた回数"
+  stats:
+    action: "raidspawner:win_lose"
+    value: 5
+
+raid_starts:
+  name: "襲撃に参加"
+  description: "襲撃に参加した回数"
+  stats:
+    action: "raidspawner:starts"
+    value: 5
+```
+</details>
+
 
  
 ## ライセンス
